@@ -103,6 +103,10 @@ def service_enable(service_name: str) -> NoReturn:
     _systemctl("enable", service_name)
 
 
+def systemctl_daemon_reload():
+    subprocess.run(["systemctl", "daemon-reload"]).check_returncode()
+
+
 def ip_from_default_iface() -> str:
     default_gateway = netifaces.gateways()["default"]
     if netifaces.AF_INET in default_gateway:
