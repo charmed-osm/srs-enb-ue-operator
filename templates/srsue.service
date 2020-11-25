@@ -7,8 +7,9 @@ Type=simple
 Restart=always
 RestartSec=1
 User=root
-ExecStart={{ command }}
-ExecStopPost=pkill srsenb
+KillSignal=SIGINT
+TimeoutStopSec=10
+ExecStopPost=service srsenb restart
 
 [Install]
 WantedBy=multi-user.target
