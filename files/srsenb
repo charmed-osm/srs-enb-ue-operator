@@ -1,0 +1,16 @@
+#!/bin/bash
+set -x
+source /srsLTE.env
+$SRS_ENB_BINARY \
+	--enb.name=$SRS_ENB_NAME \
+	--enb.mcc=$SRS_ENB_MCC \
+	--enb.mnc=$SRS_ENB_MNC \
+	$SRS_ENB_MME_ADDR_OPT \
+	$SRS_ENB_GTP_BIND_ADDR_OPT \
+	$SRS_ENB_S1C_BIND_ADDR_OPT \
+	--enb_files.rr_config=$SRS_ENB_RR_CONFIG \
+	--enb_files.sib_config=$SRS_ENB_SIB_CONFIG \
+	--enb_files.drb_config=$SRS_ENB_DRB_CONFIG \
+	$SRS_ENB_CONFIG \
+	--rf.device_name=$SRS_ENB_DEVICE_NAME \
+	--rf.device_args=$SRS_ENB_DEVICE_ARGS

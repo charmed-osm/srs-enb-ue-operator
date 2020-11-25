@@ -1,0 +1,5 @@
+.vscode
+build/
+venv
+__pycache__
+*.charm
