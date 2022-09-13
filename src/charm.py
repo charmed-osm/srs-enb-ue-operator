@@ -27,7 +27,7 @@ from ops.model import ActiveStatus, MaintenanceStatus
 from utils import (
     copy_files,
     git_clone,
-    install_apt,
+    install_apt_package,
     ip_from_default_iface,
     ip_from_iface,
     is_ipv4,
@@ -38,6 +38,7 @@ from utils import (
     service_stop,
     shell,
     systemctl_daemon_reload,
+    update_apt_cache,
 )
 
 logger = logging.getLogger(__name__)
@@ -132,7 +133,10 @@ class SrsLteCharm(CharmBase):
     def _on_install(self, _: InstallEvent) -> None:
         """Triggered on install event."""
         self.unit.status = MaintenanceStatus("Installing apt packages")
-        install_apt(packages=APT_REQUIREMENTS, update=True)
+
+        update_apt_cache()
+        for package in APT_REQUIREMENTS:
+            install_apt_package(package)
 
         self.unit.status = MaintenanceStatus("Preparing the environment")
         self._reset_environment()

@@ -3,42 +3,34 @@
 
 """Set of utils functions used in charm."""
 
+import logging
 import shutil
 import subprocess
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
-import apt  # type: ignore[import]
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
 from netaddr.core import AddrFormatError  # type: ignore[import]
 
+logger = logging.getLogger(__name__)
+
 
 def service_active(service_name: str) -> bool:
     """Returns whether a given service is active."""
-    result = subprocess.run(
-        ["systemctl", "is-active", service_name],
-        stdout=subprocess.PIPE,
-        encoding="utf-8",
-    )
-    return result.stdout == "active\n"
+    response = shell(["systemctl", "is-active", service_name])
+    return response == "active\n"
 
 
-def all_values_set(dictionary: Dict[str, str]) -> bool:
-    """Returns whether all values in a dict are set."""
-    return not any(v is None for v in dictionary.values())
+def update_apt_cache() -> None:
+    """Updates apt cache."""
+    logger.info("Updating apt cache...")
+    shell(["apt", "-qq", "update"])
 
 
-def install_apt(packages: List[str], update: bool = False) -> None:
-    """Installs a given list of packages."""
-    cache = apt.cache.Cache()
-    if update:
-        cache.update()
-    cache.open()
-    for package in packages:
-        pkg = cache[package]
-        if not pkg.is_installed:
-            pkg.mark_install()
-    cache.commit()
+def install_apt_package(package_name: str) -> None:
+    """Install apt package ca-certificates package."""
+    shell(["apt", "install", package_name])
+    logger.info(f"Install package {package_name}")
 
 
 def git_clone(
@@ -56,12 +48,15 @@ def git_clone(
     command.append(repo)
     if output_folder:
         command.append(output_folder)
-    subprocess.run(command).check_returncode()
+    shell(command)
+    logger.info("Cloned git repository")
 
 
-def shell(command: str) -> None:
+def shell(command: Union[str, List[str]]) -> str:
     """Runs a shell command."""
-    subprocess.run(command, shell=True).check_returncode()
+    response = subprocess.run(command, shell=True, stdout=subprocess.PIPE, encoding="utf-8")
+    response.check_returncode()
+    return response.stdout
 
 
 def copy_files(origin: Dict[str, str], destination: Dict[str, str]) -> None:
@@ -95,34 +90,38 @@ def is_ipv4(ip: str) -> bool:
         return False
 
 
-# Service functions
 def _systemctl(action: str, service_name: str) -> None:
-    subprocess.run(["systemctl", action, service_name]).check_returncode()
+    shell(["systemctl", action, service_name])
 
 
 def service_start(service_name: str) -> None:
     """Starts a given service."""
     _systemctl("start", service_name)
+    logger.info(f"Service {service_name} started")
 
 
 def service_restart(service_name: str) -> None:
     """Restarts a given service."""
     _systemctl("restart", service_name)
+    logger.info(f"Service {service_name} restarted")
 
 
 def service_stop(service_name: str) -> None:
     """Stops a given service."""
     _systemctl("stop", service_name)
+    logger.info(f"Service {service_name} stopped")
 
 
 def service_enable(service_name: str) -> None:
     """Enables a given service."""
     _systemctl("enable", service_name)
+    logger.info(f"Service {service_name} enabled")
 
 
 def systemctl_daemon_reload() -> None:
     """Runs `systemctl daemon-reload`."""
-    subprocess.run(["systemctl", "daemon-reload"]).check_returncode()
+    shell(["systemctl", "daemon-reload"])
+    logger.info("Systemd manager configuration reloeaded")
 
 
 def ip_from_default_iface() -> Optional[str]:

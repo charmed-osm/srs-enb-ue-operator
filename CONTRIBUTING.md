@@ -10,7 +10,7 @@ charmcraft pack
 ## Deploy
 
 ```bash
-juju deploy ./srs-enb-ue.charm
+juju deploy ./srs-enb-ue_ubuntu-20.04-amd64.charm
 ```
 
 ## Develop
