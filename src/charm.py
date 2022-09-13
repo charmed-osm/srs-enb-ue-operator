@@ -14,9 +14,11 @@ from ops.charm import (
     ActionEvent,
     CharmBase,
     ConfigChangedEvent,
+    InstallEvent,
     RelationChangedEvent,
     StartEvent,
     StopEvent,
+    UpdateStatusEvent,
 )
 from ops.framework import StoredState
 from ops.main import main
@@ -127,7 +129,8 @@ class SrsLteCharm(CharmBase):
         # Relations hooks
         self.framework.observe(self.on.mme_relation_changed, self._mme_relation_changed)
 
-    def _on_install(self, _):
+    def _on_install(self, _: InstallEvent) -> None:
+        """Triggered on install event."""
         self.unit.status = MaintenanceStatus("Installing apt packages")
         install_apt(packages=APT_REQUIREMENTS, update=True)
 
@@ -150,32 +153,35 @@ class SrsLteCharm(CharmBase):
         service_enable(SRS_ENB_SERVICE)
         self._stored.installed = True
 
-    def _on_start(self, _: StartEvent):
+    def _on_start(self, _: StartEvent) -> None:
+        """Triggered on start event."""
         self.unit.status = MaintenanceStatus("Starting srsenb")
         service_start(SRS_ENB_SERVICE)
         self._stored.started = True
         self.unit.status = self._get_current_status()
 
     def _on_stop(self, _: StopEvent):
+        """Triggered on stop event."""
         self._reset_environment()
         service_stop(SRS_ENB_SERVICE)
         self._stored.started = False
         self.unit.status = self._get_current_status()
 
     def _on_config_changed(self, _: ConfigChangedEvent):
+        """Triggered on config changed event."""
         self._stored.bind_addr = self._get_bind_address()
         self._configure_srsenb_service()
-        # Restart the service only if it is running
         if self._stored.started:
             self.unit.status = MaintenanceStatus("Reloading srsenb")
             service_restart(SRS_ENB_SERVICE)
         self.unit.status = self._get_current_status()
 
-    def _on_update_status(self, _):
+    def _on_update_status(self, _: UpdateStatusEvent) -> None:
+        """Triggered on update status event."""
         self.unit.status = self._get_current_status()
 
-    # Action hooks
-    def _on_attach_ue_action(self, event: ActionEvent):
+    def _on_attach_ue_action(self, event: ActionEvent) -> None:
+        """Triggered on attach_ue action."""
         self._stored.ue_usim_imsi = event.params["usim-imsi"]
         self._stored.ue_usim_k = event.params["usim-k"]
         self._stored.ue_usim_opc = event.params["usim-opc"]
@@ -185,7 +191,8 @@ class SrsLteCharm(CharmBase):
         self.unit.status = self._get_current_status()
         event.set_results({"status": "ok", "message": "Attached successfully"})
 
-    def _on_detach_ue_action(self, event: ActionEvent):
+    def _on_detach_ue_action(self, event: ActionEvent) -> None:
+        """Triggered on detach_ue action."""
         self._stored.ue_usim_imsi = None
         self._stored.ue_usim_k = None
         self._stored.ue_usim_opc = None
@@ -196,25 +203,28 @@ class SrsLteCharm(CharmBase):
         event.set_results({"status": "ok", "message": "Detached successfully"})
 
     def _on_remove_default_gw_action(self, event: ActionEvent):
+        """Triggered on remove_default_gw action."""
         shell("route del default")
         event.set_results({"status": "ok", "message": "Default route removed!"})
 
-    # Relation hooks
-    def _mme_relation_changed(self, event: RelationChangedEvent):
-        # Get mme address from relation
+    def _mme_relation_changed(self, event: RelationChangedEvent) -> None:
+        """Triggered on MME relation changed event.
+
+        Retrieves MME address from relation, configures the srs enb service and restarts it.
+        """
         if event.unit in event.relation.data:
             mme_addr = event.relation.data[event.unit].get("mme-addr")
             if not is_ipv4(mme_addr):
                 return
             self._stored.mme_addr = mme_addr
             self._configure_srsenb_service()
-            # Restart the service only if it is running
             if self._stored.started:
                 self.unit.status = MaintenanceStatus("Reloading srsenb")
                 service_restart(SRS_ENB_SERVICE)
         self.unit.status = self._get_current_status()
 
     def _configure_srsenb_service(self) -> None:
+        """Configures srs enb service."""
         self._configure_service(
             command=self._get_srsenb_command(),
             service_template=SRS_ENB_SERVICE_TEMPLATE,
@@ -222,6 +232,7 @@ class SrsLteCharm(CharmBase):
         )
 
     def _configure_srsue_service(self) -> None:
+        """Configures srs ue service."""
         self._configure_service(
             command=self._get_srsue_command(),
             service_template=SRS_UE_SERVICE_TEMPLATE,
@@ -233,7 +244,8 @@ class SrsLteCharm(CharmBase):
         command: str,
         service_template: str,
         service_path: str,
-    ):
+    ) -> None:
+        """Renders service template and reload daemon service."""
         with open(service_template, "r") as template:
             service_content = Template(template.read()).render(command=command)
             with open(service_path, "w") as service:
@@ -241,6 +253,7 @@ class SrsLteCharm(CharmBase):
             systemctl_daemon_reload()
 
     def _get_srsenb_command(self) -> str:
+        """Returns srs enb command."""
         srsenb_command = [SRS_ENB_BINARY]
         if self._stored.mme_addr:
             srsenb_command.append(f"--enb.mme_addr={self._stored.mme_addr}")
@@ -259,6 +272,7 @@ class SrsLteCharm(CharmBase):
         return " ".join(srsenb_command)
 
     def _get_srsue_command(self) -> str:
+        """Returns srs ue command."""
         srsue_command = [SRS_UE_BINARY]
         if self._stored.ue_usim_imsi:
             srsue_command.append(f"--usim.imsi={self._stored.ue_usim_imsi}")
@@ -272,19 +286,22 @@ class SrsLteCharm(CharmBase):
         return " ".join(srsue_command)
 
     @staticmethod
-    def _reset_environment():
-        # Remove old folders (if they exist)
+    def _reset_environment() -> None:
+        """Resets environment.
+
+        Remove old folders (if they exist) and create needed ones.
+        """
         shutil.rmtree(SRC_PATH, ignore_errors=True)
         shutil.rmtree(BUILD_PATH, ignore_errors=True)
         shutil.rmtree(CONFIG_PATH, ignore_errors=True)
         shutil.rmtree(SERVICE_PATH, ignore_errors=True)
-        # Create needed folders
         os.mkdir(SRC_PATH)
         os.mkdir(BUILD_PATH)
         os.mkdir(CONFIG_PATH)
         os.mkdir(SERVICE_PATH)
 
     def _get_bind_address(self) -> Optional[str]:
+        """Returns bind address."""
         bind_address_subnet = self.model.config.get("bind-address-subnet")
         if bind_address_subnet:
             bind_addr = ip_from_iface(bind_address_subnet)
@@ -293,6 +310,7 @@ class SrsLteCharm(CharmBase):
         return bind_addr
 
     def _get_current_status(self) -> ActiveStatus:
+        """Returns current status."""
         status_type = ActiveStatus
         status_msg = ""
         if self._stored.installed:
