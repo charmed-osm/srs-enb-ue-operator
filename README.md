@@ -1,9 +1,13 @@
 # SRS-ENB-UE-Operator
 
-Operations packages for SRS EnodeB and User Emulator.
+Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (SRS)](https://www.srslte.com/).
 
 ## Usage
 
 ```bash
-juju deploy cs:~charmed-osm/srs-enb-ue --channel edge
+juju deploy charmed-osm-srs-enb-ue --channel edge
 ```
+
+## Relations
+
+- **lte-vepc**: LTE VEPC Interface
