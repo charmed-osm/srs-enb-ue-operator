@@ -27,7 +27,7 @@ from ops.model import ActiveStatus, MaintenanceStatus
 from utils import (
     copy_files,
     git_clone,
-    install_apt,
+    install_apt_package,
     ip_from_default_iface,
     ip_from_iface,
     is_ipv4,
@@ -38,6 +38,7 @@ from utils import (
     service_stop,
     shell,
     systemctl_daemon_reload,
+    update_apt_cache,
 )
 
 logger = logging.getLogger(__name__)
@@ -132,7 +133,9 @@ class SrsLteCharm(CharmBase):
     def _on_install(self, _: InstallEvent) -> None:
         """Triggered on install event."""
         self.unit.status = MaintenanceStatus("Installing apt packages")
-        install_apt(packages=APT_REQUIREMENTS, update=True)
+        update_apt_cache()
+        for package in APT_REQUIREMENTS:
+            install_apt_package(package)
 
         self.unit.status = MaintenanceStatus("Preparing the environment")
         self._reset_environment()
@@ -160,14 +163,14 @@ class SrsLteCharm(CharmBase):
         self._stored.started = True
         self.unit.status = self._get_current_status()
 
-    def _on_stop(self, _: StopEvent):
+    def _on_stop(self, _: StopEvent) -> None:
         """Triggered on stop event."""
         self._reset_environment()
         service_stop(SRS_ENB_SERVICE)
         self._stored.started = False
         self.unit.status = self._get_current_status()
 
-    def _on_config_changed(self, _: ConfigChangedEvent):
+    def _on_config_changed(self, _: ConfigChangedEvent) -> None:
         """Triggered on config changed event."""
         self._stored.bind_addr = self._get_bind_address()
         self._configure_srsenb_service()
@@ -202,7 +205,7 @@ class SrsLteCharm(CharmBase):
         self.unit.status = self._get_current_status()
         event.set_results({"status": "ok", "message": "Detached successfully"})
 
-    def _on_remove_default_gw_action(self, event: ActionEvent):
+    def _on_remove_default_gw_action(self, event: ActionEvent) -> None:
         """Triggered on remove_default_gw action."""
         shell("route del default")
         event.set_results({"status": "ok", "message": "Default route removed!"})
