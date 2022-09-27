@@ -31,20 +31,12 @@ def install_apt_packages(package_list: List[str]) -> None:
 
 def git_clone(
     repo: str,
-    output_folder: str = None,
-    branch: str = None,
-    depth: int = None,
+    output_folder: str,
+    branch: str,
+    depth: int,
 ) -> None:
     """Runs git clone of a given repo."""
-    command = "git clone"
-    if branch:
-        command = f"{command} --branch={branch}"
-    if depth:
-        command = f"{command} --depth={depth}"
-    command = f"{command} {repo}"
-    if output_folder:
-        command = f"{command} {output_folder}"
-    shell(command)
+    shell(f"git clone --branch={branch} --depth={depth} {repo} {output_folder}")
     logger.info("Cloned git repository")
 
 
