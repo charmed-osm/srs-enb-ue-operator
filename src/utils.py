@@ -38,12 +38,12 @@ def git_clone(
     """Runs git clone of a given repo."""
     command = "git clone"
     if branch:
-        command = command + f" --branch={branch}"
+        command = f"{command} --branch={branch}"
     if depth:
-        command = command + f" --depth={depth}"
-    command = command + " " + repo
+        command = f"{command} --depth={depth}"
+    command = f"{command} {repo}"
     if output_folder:
-        command = command + " " + output_folder
+        command = f"{command} {output_folder}"
     shell(command)
     logger.info("Cloned git repository")
 
