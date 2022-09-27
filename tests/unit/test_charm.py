@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import call, mock_open, patch
 
 from ops import testing
+from ops.model import ActiveStatus
 
 from charm import SrsLteCharm
 
@@ -210,3 +211,55 @@ class TestCharm(unittest.TestCase):
 
         assert mock_open_write_srsenb_service.writen_data == srsenb_expected_service
         assert mock_open_write_srsue_service.writen_data == srsue_expected_service
+
+    @patch("subprocess.run")
+    def test_given_service_not_yet_started_when_on_start_then_srsenb_service_is_started(
+        self, patch_run
+    ):
+        self.harness.charm.on.start.emit()
+
+        patch_run.assert_any_call(
+            "systemctl start srsenb", shell=True, stdout=-1, encoding="utf-8"
+        )
+
+    @patch("subprocess.run")
+    def test_given_service_started_when_on_start_then_srsenb_status_is_active(self, _):
+        self.harness.charm.on.start.emit()
+
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+
+    @patch("shutil.rmtree")
+    @patch("os.mkdir")
+    @patch("subprocess.run")
+    def test_given_srsenb_service_is_running_when_on_stop_then_service_is_stopped(
+        self, patch_run, _, __
+    ):
+        self.harness.charm.on.stop.emit()
+
+        patch_run.assert_any_call("systemctl stop srsenb", shell=True, stdout=-1, encoding="utf-8")
+
+    @patch("shutil.rmtree")
+    @patch("os.mkdir")
+    @patch("subprocess.run")
+    def test_given_srsenb_service_is_running_when_on_stop_then_folders_content_is_removed(
+        self, _, patch_mkdir, patch_rmtree
+    ):
+        self.harness.charm.on.stop.emit()
+
+        patch_rmtree.assert_has_calls(
+            calls=[
+                call("/srsLTE", ignore_errors=True),
+                call("/build", ignore_errors=True),
+                call("/config", ignore_errors=True),
+                call("/service", ignore_errors=True),
+            ]
+        )
+        patch_mkdir.assert_has_calls(
+            calls=[
+                call("/srsLTE"),
+                call("/build"),
+                call("/config"),
+                call("/service"),
+            ]
+        )
+
