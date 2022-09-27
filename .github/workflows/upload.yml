@@ -1,0 +1,21 @@
+name: Uploads operator
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  charmhub-upload:
+    runs-on: ubuntu-20.04
+    name: Charmhub upload charm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: canonical/charming-actions/upload-charm@2.0.0-rc
+        with:
+          credentials: "${{ secrets.CHARMCRAFT_AUTH }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          channel: "edge"
+          upload-image: "false"
