@@ -52,7 +52,7 @@ class TestCharm(unittest.TestCase):
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
-            ["apt", "-qq", "update"], shell=True, stdout=-1, encoding="utf-8"
+            "sudo apt -qq update", shell=True, stdout=-1, encoding="utf-8"
         )
 
     @patch("builtins.open", new_callable=mock_open)
@@ -66,37 +66,10 @@ class TestCharm(unittest.TestCase):
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
-            ["apt", "install", "git"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "libzmq3-dev"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "cmake"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "build-essential"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "libmbedtls-dev"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "libboost-program-options-dev"],
+            "sudo apt -y install git libzmq3-dev cmake build-essential libmbedtls-dev libboost-program-options-dev libsctp-dev libconfig++-dev libfftw3-dev net-tools",  # noqa: E501
             shell=True,
             stdout=-1,
             encoding="utf-8",
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "libsctp-dev"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "libconfig++-dev"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "libfftw3-dev"], shell=True, stdout=-1, encoding="utf-8"
-        )
-        patch_subprocess_run.assert_any_call(
-            ["apt", "install", "net-tools"], shell=True, stdout=-1, encoding="utf-8"
         )
 
     @patch("builtins.open", new_callable=mock_open)
@@ -130,14 +103,7 @@ class TestCharm(unittest.TestCase):
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
-            [
-                "git",
-                "clone",
-                "--branch=release_20_10",
-                "--depth=1",
-                "https://github.com/srsLTE/srsLTE.git",
-                "/srsLTE",
-            ],
+            "git clone --branch=release_20_10 --depth=1 https://github.com/srsLTE/srsLTE.git /srsLTE",  # noqa: E501
             shell=True,
             stdout=-1,
             encoding="utf-8",

@@ -6,7 +6,7 @@
 import logging
 import shutil
 import subprocess
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
@@ -17,20 +17,16 @@ logger = logging.getLogger(__name__)
 
 def service_active(service_name: str) -> bool:
     """Returns whether a given service is active."""
-    response = shell(["systemctl", "is-active", service_name])
+    response = shell(f"systemctl is-active {service_name}")
     return response == "active\n"
 
 
-def update_apt_cache() -> None:
-    """Updates apt cache."""
-    logger.info("Updating apt cache...")
-    shell(["apt", "-qq", "update"])
-
-
-def install_apt_package(package_name: str) -> None:
+def install_apt_packages(package_list: List[str]) -> None:
     """Install apt package ca-certificates package."""
-    shell(["apt", "install", package_name])
-    logger.info(f"Install package {package_name}")
+    package_list_str = " ".join(package_list)
+    shell("sudo apt -qq update")
+    shell(f"sudo apt -y install {package_list_str}")
+    logger.info(f"Installed packages: {package_list_str}")
 
 
 def git_clone(
@@ -40,19 +36,19 @@ def git_clone(
     depth: int = None,
 ) -> None:
     """Runs git clone of a given repo."""
-    command = ["git", "clone"]
+    command = "git clone"
     if branch:
-        command.append(f"--branch={branch}")
+        command = command + f" --branch={branch}"
     if depth:
-        command.append(f"--depth={depth}")
-    command.append(repo)
+        command = command + f" --depth={depth}"
+    command = command + " " + repo
     if output_folder:
-        command.append(output_folder)
+        command = command + " " + output_folder
     shell(command)
     logger.info("Cloned git repository")
 
 
-def shell(command: Union[str, List[str]]) -> str:
+def shell(command: str) -> str:
     """Runs a shell command."""
     response = subprocess.run(command, shell=True, stdout=subprocess.PIPE, encoding="utf-8")
     response.check_returncode()
@@ -91,7 +87,7 @@ def is_ipv4(ip: str) -> bool:
 
 
 def _systemctl(action: str, service_name: str) -> None:
-    shell(["systemctl", action, service_name])
+    shell(f"systemctl {action} {service_name}")
 
 
 def service_start(service_name: str) -> None:
@@ -120,7 +116,7 @@ def service_enable(service_name: str) -> None:
 
 def systemctl_daemon_reload() -> None:
     """Runs `systemctl daemon-reload`."""
-    shell(["systemctl", "daemon-reload"])
+    shell("systemctl daemon-reload")
     logger.info("Systemd manager configuration reloeaded")
 
 
