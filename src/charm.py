@@ -95,7 +95,7 @@ SRS_ENB_UE_BUILD_COMMAND = f"cd {BUILD_PATH} && cmake {SRC_PATH} && make -j `npr
 
 
 class SrsLteCharm(CharmBase):
-    """Srs LTE charm."""
+    """srsRAN LTE charm."""
 
     _stored = StoredState()
 

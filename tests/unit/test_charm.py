@@ -263,3 +263,14 @@ class TestCharm(unittest.TestCase):
             ]
         )
 
+    @patch("subprocess.run")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_given_any_config_when_on_config_changed_then_systemd_manager_configuration_is_reloaded(  # noqa: E501
+        self, _, patch_run
+    ):
+        key_values = {}
+        self.harness.update_config(key_values=key_values)
+
+        patch_run.assert_any_call(
+            "systemctl daemon-reload", shell=True, stdout=-1, encoding="utf-8"
+        )
