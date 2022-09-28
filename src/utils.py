@@ -103,7 +103,7 @@ def service_stop(service_name: str) -> None:
 def service_enable(service_name: str) -> None:
     """Enables a given service."""
     _systemctl("enable", service_name)
-    logger.info(f"Service {service_name} enabled")
+    logger.info("Service %s enabled", (service_name))
 
 
 def systemctl_daemon_reload() -> None:
