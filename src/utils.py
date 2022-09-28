@@ -85,7 +85,7 @@ def _systemctl(action: str, service_name: str) -> None:
 def service_start(service_name: str) -> None:
     """Starts a given service."""
     _systemctl("start", service_name)
-    logger.info(f"Service {service_name} started")
+    logger.info("Service %s started", (service_name))
 
 
 def service_restart(service_name: str) -> None:
