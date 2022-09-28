@@ -28,7 +28,7 @@ class MockOpen:
 
     def write(self, data: str):
         """Write."""
-        self.writen_data = data
+        self.written_data = data
 
     def __exit__(self, *args):
         """Exit."""
