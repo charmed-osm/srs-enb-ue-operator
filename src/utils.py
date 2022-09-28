@@ -22,7 +22,7 @@ def service_active(service_name: str) -> bool:
 
 
 def install_apt_packages(package_list: List[str]) -> None:
-    """Install apt package ca-certificates package."""
+    """Installs a given list of packages."""
     package_list_str = " ".join(package_list)
     shell("sudo apt -qq update")
     shell(f"sudo apt -y install {package_list_str}")
