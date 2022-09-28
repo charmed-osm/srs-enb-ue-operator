@@ -151,11 +151,7 @@ class TestCharm(unittest.TestCase):
     @patch("shutil.rmtree")
     @patch("subprocess.run")
     def test_given_service_template_when_install_then_srsenb_service_file_is_rendered(
-        self,
-        _,
-        __,
-        ___,
-        ____,
+        self, _, __, ___, ____
     ):
 
         with open("templates/srsenb.service", "r") as f:
