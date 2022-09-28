@@ -36,7 +36,7 @@ options:
   ue-usim-algo:
     type: string
     description: |
-       The authentication algorithm to use (MILENAGE or XOR).
+      The authentication algorithm to use (MILENAGE or XOR).
     default: milenage
   ue-nas-apn:
     type: string
