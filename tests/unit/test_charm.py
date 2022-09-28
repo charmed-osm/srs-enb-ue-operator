@@ -49,7 +49,6 @@ class TestCharm(unittest.TestCase):
     def test_given_list_of_packages_to_install_when_install_then_apt_cache_is_updated(
         self, patch_subprocess_run, _, __, ___, ____
     ):
-
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
