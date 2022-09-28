@@ -208,8 +208,8 @@ class TestCharm(unittest.TestCase):
             "WantedBy=multi-user.target"
         )
 
-        assert mock_open_write_srsenb_service.writen_data == srsenb_expected_service
-        assert mock_open_write_srsue_service.writen_data == srsue_expected_service
+        assert mock_open_write_srsenb_service.written_data == srsenb_expected_service
+        assert mock_open_write_srsue_service.written_data == srsue_expected_service
 
     @patch("subprocess.run")
     def test_given_service_not_yet_started_when_on_start_then_srsenb_service_is_started(
