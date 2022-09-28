@@ -16,7 +16,7 @@ class MockOpen:
     def __init__(self, read_data: str = ""):
         """Init."""
         self.read_data = read_data
-        self.writen_data = None
+        self.written_data = None
 
     def __enter__(self):
         """Enter."""
