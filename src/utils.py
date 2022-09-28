@@ -91,7 +91,7 @@ def service_start(service_name: str) -> None:
 def service_restart(service_name: str) -> None:
     """Restarts a given service."""
     _systemctl("restart", service_name)
-    logger.info(f"Service {service_name} restarted")
+    logger.info("Service %s restarted", (service_name))
 
 
 def service_stop(service_name: str) -> None:
