@@ -3,65 +3,48 @@
 
 """Set of utils functions used in charm."""
 
+import logging
 import shutil
 import subprocess
 from typing import Dict, List, Optional
 
-import apt  # type: ignore[import]
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
 from netaddr.core import AddrFormatError  # type: ignore[import]
 
+logger = logging.getLogger(__name__)
+
 
 def service_active(service_name: str) -> bool:
     """Returns whether a given service is active."""
-    result = subprocess.run(
-        ["systemctl", "is-active", service_name],
-        stdout=subprocess.PIPE,
-        encoding="utf-8",
-    )
-    return result.stdout == "active\n"
+    response = shell(f"systemctl is-active {service_name}")
+    return response == "active\n"
 
 
-def all_values_set(dictionary: Dict[str, str]) -> bool:
-    """Returns whether all values in a dict are set."""
-    return not any(v is None for v in dictionary.values())
-
-
-def install_apt(packages: List[str], update: bool = False) -> None:
+def install_apt_packages(package_list: List[str]) -> None:
     """Installs a given list of packages."""
-    cache = apt.cache.Cache()
-    if update:
-        cache.update()
-    cache.open()
-    for package in packages:
-        pkg = cache[package]
-        if not pkg.is_installed:
-            pkg.mark_install()
-    cache.commit()
+    package_list_str = " ".join(package_list)
+    shell("sudo apt -qq update")
+    shell(f"sudo apt -y install {package_list_str}")
+    logger.info(f"Installed packages: {package_list_str}")
 
 
 def git_clone(
     repo: str,
-    output_folder: str = None,
-    branch: str = None,
-    depth: int = None,
+    output_folder: str,
+    branch: str,
+    depth: int,
 ) -> None:
     """Runs git clone of a given repo."""
-    command = ["git", "clone"]
-    if branch:
-        command.append(f"--branch={branch}")
-    if depth:
-        command.append(f"--depth={depth}")
-    command.append(repo)
-    if output_folder:
-        command.append(output_folder)
-    subprocess.run(command).check_returncode()
+    shell(f"git clone --branch={branch} --depth={depth} {repo} {output_folder}")
+    logger.info("Cloned git repository")
 
 
-def shell(command: str) -> None:
+def shell(command: str) -> str:
     """Runs a shell command."""
-    subprocess.run(command, shell=True).check_returncode()
+    response = subprocess.run(command, shell=True, stdout=subprocess.PIPE, encoding="utf-8")
+    response.check_returncode()
+    return response.stdout
 
 
 def copy_files(origin: Dict[str, str], destination: Dict[str, str]) -> None:
@@ -95,34 +78,38 @@ def is_ipv4(ip: str) -> bool:
         return False
 
 
-# Service functions
 def _systemctl(action: str, service_name: str) -> None:
-    subprocess.run(["systemctl", action, service_name]).check_returncode()
+    shell(f"systemctl {action} {service_name}")
 
 
 def service_start(service_name: str) -> None:
     """Starts a given service."""
     _systemctl("start", service_name)
+    logger.info("Service %s started", (service_name))
 
 
 def service_restart(service_name: str) -> None:
     """Restarts a given service."""
     _systemctl("restart", service_name)
+    logger.info("Service %s restarted", (service_name))
 
 
 def service_stop(service_name: str) -> None:
     """Stops a given service."""
     _systemctl("stop", service_name)
+    logger.info("Service %s stopped", (service_name))
 
 
 def service_enable(service_name: str) -> None:
     """Enables a given service."""
     _systemctl("enable", service_name)
+    logger.info("Service %s enabled", (service_name))
 
 
 def systemctl_daemon_reload() -> None:
     """Runs `systemctl daemon-reload`."""
-    subprocess.run(["systemctl", "daemon-reload"]).check_returncode()
+    shell("systemctl daemon-reload")
+    logger.info("Systemd manager configuration reloeaded")
 
 
 def ip_from_default_iface() -> Optional[str]:

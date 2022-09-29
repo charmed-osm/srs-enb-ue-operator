@@ -1,20 +1,17 @@
-# Copyright 2020 David Garcia
+# Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
-#
-# This is only an example, and you should edit to suit your needs.
-# If you don't need actions, you can remove the file entirely.
-# It ties in to the example _on_fortune_action handler in src/charm.py
+
 attach-ue:
   description: Attach User Emulator to enodeB
   params:
     usim-imsi:
-      description: "USIM IMSI"
+      description: "The unique identifier of the USIM"
       type: string
     usim-k:
-      description: "USIM K"
+      description: "The secret key shared with the HSS in the EPC"
       type: string
     usim-opc:
-      description: "USIM OPC"
+      description: "The Operator Code (only used with MILENAGE algorithm)"
       type: string
   required:
     - usim-imsi
