@@ -2,22 +2,22 @@
 # See LICENSE file for licensing details.
 
 attach-ue:
-  description: Attach User Emulator to enodeB
+  description: Attach User Emulator to enodeB.
   params:
     usim-imsi:
-      description: "The unique identifier of the USIM"
+      description: The unique identifier of the USIM.
       type: string
     usim-k:
-      description: "The secret key shared with the HSS in the EPC"
+      description: The secret key shared with the HSS in the EPC.
       type: string
     usim-opc:
-      description: "The Operator Code (only used with MILENAGE algorithm)"
+      description: The Operator Code (only used with MILENAGE algorithm).
       type: string
   required:
     - usim-imsi
     - usim-k
     - usim-opc
 detach-ue:
-  description: "Detach from AGW."
+  description: Detach from AGW.
 remove-default-gw:
-  description: "Remove default gateway"
+  description: Remove default gateway.

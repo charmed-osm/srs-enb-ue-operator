@@ -258,31 +258,47 @@ class SrsLteCharm(CharmBase):
         if self._stored.mme_addr:
             srsenb_command.append(f"--enb.mme_addr={self._stored.mme_addr}")
         if self._stored.bind_addr:
-            srsenb_command.append(f"--enb.gtp_bind_addr={self._stored.bind_addr}")
-            srsenb_command.append(f"--enb.s1c_bind_addr={self._stored.bind_addr}")
-        srsenb_command.append(f'--enb.name={self.config.get("enb-name")}')
-        srsenb_command.append(f'--enb.mcc={self.config.get("enb-mcc")}')
-        srsenb_command.append(f'--enb.mnc={self.config.get("enb-mnc")}')
-        srsenb_command.append(f'--enb_files.rr_config={CONFIG_PATHS["rr"]}')
-        srsenb_command.append(f'--enb_files.sib_config={CONFIG_PATHS["sib"]}')
-        srsenb_command.append(f'--enb_files.drb_config={CONFIG_PATHS["drb"]}')
-        srsenb_command.append(CONFIG_PATHS["enb"])
-        srsenb_command.append(f'--rf.device_name={self.config.get("enb-rf-device-name")}')
-        srsenb_command.append(f'--rf.device_args={self.config.get("enb-rf-device-args")}')
+            srsenb_command.extend(
+                (
+                    f"--enb.gtp_bind_addr={self._stored.bind_addr}",
+                    f"--enb.s1c_bind_addr={self._stored.bind_addr}",
+                )
+            )
+        srsenb_command.extend(
+            (
+                f'--enb.name={self.config.get("enb-name")}',
+                f'--enb.mcc={self.config.get("enb-mcc")}',
+                f'--enb.mnc={self.config.get("enb-mnc")}',
+                f'--enb_files.rr_config={CONFIG_PATHS["rr"]}',
+                f'--enb_files.sib_config={CONFIG_PATHS["sib"]}',
+                f'--enb_files.drb_config={CONFIG_PATHS["drb"]}',
+                CONFIG_PATHS["enb"],
+                f'--rf.device_name={self.config.get("enb-rf-device-name")}',
+                f'--rf.device_args={self.config.get("enb-rf-device-args")}',
+            )
+        )
         return " ".join(srsenb_command)
 
     def _get_srsue_command(self) -> str:
         """Returns srs ue command."""
         srsue_command = [SRS_UE_BINARY]
         if self._stored.ue_usim_imsi:
-            srsue_command.append(f"--usim.imsi={self._stored.ue_usim_imsi}")
-            srsue_command.append(f"--usim.k={self._stored.ue_usim_k}")
-            srsue_command.append(f"--usim.opc={self._stored.ue_usim_opc}")
-        srsue_command.append(f'--usim.algo={self.config.get("ue-usim-algo")}')
-        srsue_command.append(f'--nas.apn={self.config.get("ue-nas-apn")}')
-        srsue_command.append(f'--rf.device_name={self.config.get("ue-device-name")}')
-        srsue_command.append(f'--rf.device_args={self.config.get("ue-device-args")}')
-        srsue_command.append(CONFIG_PATHS["ue"])
+            srsue_command.extend(
+                (
+                    f"--usim.imsi={self._stored.ue_usim_imsi}",
+                    f"--usim.k={self._stored.ue_usim_k}",
+                    f"--usim.opc={self._stored.ue_usim_opc}",
+                )
+            )
+        srsue_command.extend(
+            (
+                f'--usim.algo={self.config.get("ue-usim-algo")}',
+                f'--nas.apn={self.config.get("ue-nas-apn")}',
+                f'--rf.device_name={self.config.get("ue-device-name")}',
+                f'--rf.device_args={self.config.get("ue-device-args")}',
+                CONFIG_PATHS["ue"],
+            )
+        )
         return " ".join(srsue_command)
 
     @staticmethod
@@ -302,12 +318,11 @@ class SrsLteCharm(CharmBase):
 
     def _get_bind_address(self) -> Optional[str]:
         """Returns bind address."""
-        bind_address_subnet = self.model.config.get("bind-address-subnet")
-        if bind_address_subnet:
-            bind_addr = ip_from_iface(bind_address_subnet)
-        else:
-            bind_addr = ip_from_default_iface()
-        return bind_addr
+        return (
+            ip_from_iface(bind_address_subnet)
+            if (bind_address_subnet := self.model.config.get("bind-address-subnet"))
+            else ip_from_default_iface()
+        )
 
     def _get_current_status(self) -> ActiveStatus:
         """Returns current status."""
