@@ -109,7 +109,7 @@ def service_enable(service_name: str) -> None:
 def systemctl_daemon_reload() -> None:
     """Runs `systemctl daemon-reload`."""
     shell("systemctl daemon-reload")
-    logger.info("Systemd manager configuration reloeaded")
+    logger.info("Systemd manager configuration reloaded")
 
 
 def ip_from_default_iface() -> Optional[str]:
@@ -128,9 +128,9 @@ def ip_from_iface(subnet: str) -> Optional[str]:
     try:
         target_network = IPNetwork(subnet)
         networks = get_local_ipv4_networks()
-        for network in networks:
-            if network.ip in target_network:
-                return network.ip.format()
-        return None
+        return next(
+            (network.ip.format() for network in networks if network.ip in target_network), None
+        )
+
     except AddrFormatError:
         return None
