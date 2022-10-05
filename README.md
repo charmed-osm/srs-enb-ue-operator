@@ -4,11 +4,7 @@ Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (S
 
 ## Installation and configuration
 
-```bash
-juju deploy charmed-osm-srs-enb-ue --channel edge
-```
-
-The easiest method is to configure and deploy at the same time. For it create a YAML configuration file:
+Create a YAML configuration file with the necessary charm config:
 
 ```yaml
 ---
@@ -31,19 +27,6 @@ And run the deploy command:
 juju deploy charmed-osm-srs-enb-ue --config <yaml config file>
 ```
 
-If you don't wish to configure on deployment, you can install and configure later.
-
-For deploying run the following command:
-
-```bash
-juju deploy charmed-osm-srs-enb-ue
-```
-
-And configure each parameter with:
-
-```bash
-juju config srs-enb-ue bind-address-subnet=<ipv4 address>
-```
 
 ## Actions
 

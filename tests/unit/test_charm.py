@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import Mock, call, mock_open, patch
 
 from ops import testing
-from ops.model import ActiveStatus
+from ops.model import ActiveStatus, MaintenanceStatus
 
 from charm import SrsLteCharm
 
@@ -225,8 +225,22 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(mock_open_write_srsenb_service.written_data, srsenb_expected_service)
         self.assertEqual(mock_open_write_srsue_service.written_data, srsue_expected_service)
 
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.mkdir")
+    @patch("shutil.copy")
+    @patch("shutil.rmtree")
     @patch("subprocess.run")
-    def test_given_service_not_yet_started_when_on_start_then_srsenb_service_is_started(
+    def test_given_install_event_when_install_then_status_is_maintenance(
+        self, _, __, patch_copy, ___, ____
+    ):
+        self.harness.charm.on.install.emit()
+
+        self.assertEqual(
+            self.harness.model.unit.status, MaintenanceStatus("Generating systemd files")
+        )  # noqa: E501
+
+    @patch("subprocess.run")
+    def test_given_service_not_yet_started_when_on_start_then_srsenb_service_is_started(  # noqa: E501
         self, patch_run
     ):
         self.harness.charm.on.start.emit()
@@ -235,11 +249,17 @@ class TestCharm(unittest.TestCase):
             "systemctl start srsenb", shell=True, stdout=-1, encoding="utf-8"
         )
 
+    @patch("charm.service_active")
     @patch("subprocess.run")
-    def test_given_service_started_when_on_start_then_srsenb_status_is_active(self, _):
+    def test_given_service_started_when_on_start_then_srsenb_status_is_active(
+        self, _, patch_service_active
+    ):
+        self.harness.charm._stored.installed = True
+        patch_service_active.return_value = True
+
         self.harness.charm.on.start.emit()
 
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started. "))
 
     @patch("shutil.rmtree")
     @patch("os.mkdir")
@@ -276,18 +296,14 @@ class TestCharm(unittest.TestCase):
             ]
         )
 
-    @patch("charm.SrsLteCharm._get_current_status")
     @patch("shutil.rmtree")
     @patch("os.mkdir")
     @patch("subprocess.run")
-    def test_given_on_stop_when_on_stop_then_status_is_refreshed(
-        self, _, __, ___, patch_get_current_status
-    ):
-        patch_get_current_status.return_value = ActiveStatus("dummy status message")
-
+    def test_given_on_stop_when_on_stop_then_status_is_active(self, _, __, ___):
+        self.harness.charm._stored.installed = True
         self.harness.charm.on.stop.emit()
 
-        patch_get_current_status.assert_any_call()
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("SW installed."))
 
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
@@ -301,17 +317,29 @@ class TestCharm(unittest.TestCase):
             "systemctl daemon-reload", shell=True, stdout=-1, encoding="utf-8"
         )
 
-    @patch("charm.SrsLteCharm._get_current_status")
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
-    def test_given_any_config_when_on_config_changed_then_status_is_refreshed(  # noqa: E501
-        self, _, __, patch_get_current_status
+    def test_given_any_config_and_installed_when_on_config_changed_then_status_is_active(  # noqa: E501
+        self, _, __
     ):
-        patch_get_current_status.return_value = ActiveStatus("dummy status message")
         key_values = {}
+        self.harness.charm._stored.installed = True
+
         self.harness.update_config(key_values=key_values)
 
-        patch_get_current_status.assert_any_call()
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("SW installed."))
+
+    @patch("subprocess.run")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_given_any_config_and_not_installed_when_on_config_changed_then_status_is_active(  # noqa: E501
+        self, _, __
+    ):
+        key_values = {}
+        self.harness.charm._stored.installed = False
+
+        self.harness.update_config(key_values=key_values)
+
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus(""))
 
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
@@ -326,6 +354,19 @@ class TestCharm(unittest.TestCase):
         patch_subprocess_run.assert_any_call(
             "systemctl restart srsenb", shell=True, stdout=-1, encoding="utf-8"
         )
+
+    @patch("utils.service_restart")
+    @patch("subprocess.run")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_given_any_config_and_started_is_false_when_on_config_changed_then_srsenb_service_is_not_restarted(  # noqa: E501
+        self, _, __, patch_service_restart
+    ):
+        key_values = {}
+        self.harness.charm._stored.started = False
+
+        self.harness.update_config(key_values=key_values)
+
+        patch_service_restart.assert_not_called()
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
@@ -356,19 +397,43 @@ class TestCharm(unittest.TestCase):
             call({"status": "ok", "message": "Attached successfully"}),
         )
 
-    @patch("charm.SrsLteCharm._get_current_status")
+    @patch("charm.service_active")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
-    def test_given_detach_ue_action_when_detach_ue_action_then_status_is_refreshed(  # noqa: E501
-        self, patch_subprocess_run, _, patch_get_current_status
+    def test_given_imsi_k_ops_and_mme_when_attached_ue_action_then_status_is_active(
+        self, patch_subprocess_run, _, __
     ):
-        patch_get_current_status.return_value = ActiveStatus("dummy status message")
+        mock_event = Mock()
+        mock_event.params = self.ATTACH_ACTION_PARAMS
+        self.harness.charm._stored.installed = True
+        self.harness.charm._stored.started = True
+        self.harness.charm._stored.mme_addr = "0.0.0.0"
+        self.harness.charm.ue_attached = True
+
+        self.harness.charm._on_attach_ue_action(mock_event)
+
+        self.assertEqual(
+            self.harness.charm.unit.status,
+            ActiveStatus("srsenb started. mme: 0.0.0.0. ue attached. "),
+        )
+
+    @patch("utils.service_active")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("subprocess.run")
+    def test_given_detach_ue_action_when_detach_ue_action_then_status_is_active(  # noqa: E501
+        self, _, __, patch_service_active
+    ):
         mock_event = Mock()
         mock_event.params = self.DETACH_ACTION_PARAMS
+        self.harness.charm._stored.installed = True
+        self.harness.charm._stored.started = True
+        patch_service_active.return_value = True
+        self.harness.charm._stored.ue_attached = False
 
         self.harness.charm._on_detach_ue_action(mock_event)
 
-        patch_get_current_status.assert_any_call()
+        self.assertNotEqual(self.harness.charm.unit.status, ActiveStatus("ue attached. "))
+        self.assertNotEqual(self.harness.charm.unit.status, ActiveStatus(""))
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
@@ -400,7 +465,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("subprocess.run")
-    def test_given_on_default_gw_action_when_default_gw_action_then_removes_default_gw(
+    def test_given_on_remove_default_gw_action_when_default_gw_action_then_removes_default_gw(
         self, patch_subprocess_run
     ):
         mock_event = Mock()
@@ -412,7 +477,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("subprocess.run")
-    def test_given_on_default_gw_action_when_default_gw_action_then_sets_action_result(
+    def test_given_on_remove_default_gw_action_when_default_gw_action_then_sets_action_result(
         self, patch_subprocess_run
     ):
         mock_event = Mock()
@@ -425,11 +490,22 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("subprocess.run")
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.SrsLteCharm._get_current_status")
-    def test_given_unit_in_relation_data_and_mme_is_not_ipv4_when_mme_relation_changed_then_status_does_not_change(  # noqa: E501
-        self, patch_get_current_status, _, __
+    def test_given_on_remove_default_gw_action_when_remove_default_gw_action_then_status_does_not_change(  # noqa: E501
+        self, _
     ):
+        mock_event = Mock()
+        old_status = self.harness.charm.unit.status
+
+        self.harness.charm._on_remove_default_gw_action(mock_event)
+
+        self.assertEqual(self.harness.charm.unit.status, old_status)
+
+    @patch("subprocess.run")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_given_unit_in_relation_data_and_mme_is_not_ipv4_when_mme_relation_changed_then_status_does_not_change(  # noqa: E501
+        self, _, __
+    ):
+        old_status = self.harness.charm.unit.status
         mock_event = Mock()
         mock_event.unit = "lte-vepc/0"
         mme_relation_id = self.harness.add_relation(relation_name="mme", remote_app="lte-vepc")
@@ -440,26 +516,33 @@ class TestCharm(unittest.TestCase):
             key_values={"mme-addr": "not an ip"},
         )
 
-        patch_get_current_status.assert_not_called()
+        self.assertEqual(self.harness.charm.unit.status, old_status)
 
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.SrsLteCharm._get_current_status")
-    def test_given_unit_in_relation_data_and_mme_is_ipv4_when_mme_relation_changed_then_status_is_refreshed(  # noqa: E501
-        self, patch_get_current_status, _, __
+    @patch("charm.service_active")
+    def test_given_unit_in_relation_data_and_mme_is_ipv4_when_mme_relation_changed_then_status_is_active(  # noqa: E501
+        self, patch_service_active, _
     ):
-        patch_get_current_status.return_value = ActiveStatus("dummy status message")
+        valid_mme = "0.0.0.0"
         mock_event = Mock()
         mock_event.unit = "lte-vepc/0"
+        self.harness.charm._stored.installed = True
+        self.harness.charm._stored.started = True
+        patch_service_active.return_value = True
+        self.harness.charm._stored.mme_addr = valid_mme
+
         mme_relation_id = self.harness.add_relation(relation_name="mme", remote_app="lte-vepc")
         self.harness.add_relation_unit(mme_relation_id, "lte-vepc/0")
         self.harness.update_relation_data(
             relation_id=mme_relation_id,
             app_or_unit="lte-vepc/0",
-            key_values={"mme-addr": "0.0.0.0"},
+            key_values={"mme-addr": valid_mme},
         )
 
-        patch_get_current_status.assert_any_call()
+        self.assertEqual(
+            self.harness.charm.unit.status, ActiveStatus("srsenb started. mme: 0.0.0.0. ")
+        )
 
     @patch("utils.service_restart")
     @patch("subprocess.run")
@@ -481,6 +564,3 @@ class TestCharm(unittest.TestCase):
         )
 
         patch_service_restart.assert_not_called()
-
-
-# TODO: test _get_current_status
