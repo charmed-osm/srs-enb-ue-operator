@@ -2,7 +2,7 @@
 
 Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (SRS)](https://www.srslte.com/).
 
-## Installation and configuration
+## Usage
 
 Create a YAML configuration file with the necessary charm config:
 
@@ -24,7 +24,7 @@ srs-enb-ue:
 And run the deploy command:
 
 ```bash
-juju deploy charmed-osm-srs-enb-ue --config <yaml config file>
+juju deploy charmed-osm-srs-enb-ue --config <yaml config file> --channel=edge
 ```
 
 

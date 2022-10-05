@@ -254,9 +254,6 @@ class TestCharm(unittest.TestCase):
     def test_given_service_started_when_on_start_then_srsenb_status_is_active(
         self, _, patch_service_active
     ):
-        self.harness.charm._stored.installed = True
-        patch_service_active.return_value = True
-
         self.harness.charm.on.start.emit()
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started. "))
@@ -335,7 +332,6 @@ class TestCharm(unittest.TestCase):
         self, _, __
     ):
         key_values = {}
-        self.harness.charm._stored.installed = False
 
         self.harness.update_config(key_values=key_values)
 
@@ -362,7 +358,6 @@ class TestCharm(unittest.TestCase):
         self, _, __, patch_service_restart
     ):
         key_values = {}
-        self.harness.charm._stored.started = False
 
         self.harness.update_config(key_values=key_values)
 
