@@ -542,11 +542,9 @@ class TestCharm(unittest.TestCase):
     @patch("utils.service_restart")
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.SrsLteCharm._get_current_status")
     def test_given_unit_in_relation_data_mme_is_ipv4_and_service_is_not_started_when_mme_relation_changed_then_service_is_not_restarted(  # noqa: E501
-        self, patch_get_current_status, __, patch_subprocess_run, patch_service_restart
+        self, __, patch_subprocess_run, patch_service_restart
     ):
-        patch_get_current_status.return_value = ActiveStatus("dummy status message")
         mock_event = Mock()
         mock_event.unit = "lte-vepc/0"
         mme_relation_id = self.harness.add_relation(relation_name="mme", remote_app="lte-vepc")
