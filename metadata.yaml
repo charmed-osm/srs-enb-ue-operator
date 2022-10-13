@@ -3,9 +3,9 @@
 
 name: srs-enb-ue
 description: |
-  TODO: fill out the charm's description
+  Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (SRS)](https://www.srslte.com/).
 summary: |
-  TODO: fill out the charm's summary
+  Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (SRS)](https://www.srslte.com/).
 series:
   - focal
 requires:
