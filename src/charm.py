@@ -15,7 +15,6 @@ from ops.charm import (
     CharmBase,
     ConfigChangedEvent,
     InstallEvent,
-    RelationChangedEvent,
     StartEvent,
     StopEvent,
     UpdateStatusEvent,
@@ -34,7 +33,6 @@ from utils import (
     install_apt_packages,
     ip_from_default_iface,
     ip_from_iface,
-    is_ipv4,
     service_active,
     service_enable,
     service_restart,
@@ -130,9 +128,6 @@ class SrsLteCharm(CharmBase):
         self.framework.observe(self.on.detach_ue_action, self._on_detach_ue_action)
         self.framework.observe(self.on.remove_default_gw_action, self._on_remove_default_gw_action)
 
-        # Relations hooks
-        self.framework.observe(self.on.mme_relation_changed, self._mme_relation_changed)
-
         # Lte core interface
         self.core_requirer = CoreRequires(self, "lte-core")
         self.framework.observe(
@@ -141,12 +136,16 @@ class SrsLteCharm(CharmBase):
         )
 
     def _on_lte_core_available(self, event: CoreAvailableEvent) -> None:
+        """Triggered on lte_core_available.
+
+        Retrieves MME address from relation, configures the srs enb service and restarts it.
+        """
         mme_addr = event.mme_ipv4_address
         logging.info(f"MME IPv4 address from core: {mme_addr}")
         self._stored.mme_addr = mme_addr
         self._configure_srsenb_service()
         if self._stored.started:
-            self.unit.status = MaintenanceStatus("Reloading srsenb")
+            self.unit.status = MaintenanceStatus("Reloading srsenb.")
             service_restart(SRS_ENB_SERVICE)
             logging.info("Restarting EnodeB after MME IP address change.")
         self.unit.status = self._get_current_status()
@@ -228,22 +227,6 @@ class SrsLteCharm(CharmBase):
         """Triggered on remove_default_gw action."""
         shell("route del default")
         event.set_results({"status": "ok", "message": "Default route removed!"})
-
-    def _mme_relation_changed(self, event: RelationChangedEvent) -> None:
-        """Triggered on MME relation changed event.
-
-        Retrieves MME address from relation, configures the srs enb service and restarts it.
-        """
-        if event.unit in event.relation.data:
-            mme_addr = event.relation.data[event.unit].get("mme-addr")
-            if not is_ipv4(mme_addr):
-                return
-            self._stored.mme_addr = mme_addr
-            self._configure_srsenb_service()
-            if self._stored.started:
-                self.unit.status = MaintenanceStatus("Reloading srsenb")
-                service_restart(SRS_ENB_SERVICE)
-        self.unit.status = self._get_current_status()
 
     def _configure_srsenb_service(self) -> None:
         """Configures srs enb service."""

@@ -56,5 +56,5 @@ juju run-action <unit> remove-default-gw --wait
 
 ## Relations
 
-- **lte-vepc**: LTE VEPC Interface. Shares enodeB's MME address.
-- **lte-core**: LTE Core Interface. Shares enodeB'.
+- **lte-core**: LTE Core Interface. Retrieves MME ipv4 address from the core network.
+

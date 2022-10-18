@@ -497,71 +497,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(self.harness.charm.unit.status, old_status)
 
-    @patch("subprocess.run")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_given_unit_in_relation_data_and_mme_is_not_ipv4_when_mme_relation_changed_then_status_does_not_change(  # noqa: E501
-        self, _, __
-    ):
-        old_status = self.harness.charm.unit.status
-        mock_event = Mock()
-        mock_event.unit = "lte-vepc/0"
-        mme_relation_id = self.harness.add_relation(relation_name="mme", remote_app="lte-vepc")
-        self.harness.add_relation_unit(mme_relation_id, "lte-vepc/0")
-        self.harness.update_relation_data(
-            relation_id=mme_relation_id,
-            app_or_unit="lte-vepc/0",
-            key_values={"mme-addr": "not an ip"},
-        )
-
-        self.assertEqual(self.harness.charm.unit.status, old_status)
-
-    @patch("subprocess.run", new=Mock())
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.service_active")
-    def test_given_unit_in_relation_data_and_mme_is_ipv4_when_mme_relation_changed_then_status_is_active(  # noqa: E501
-        self, patch_service_active, _
-    ):
-        valid_mme = "0.0.0.0"
-        mock_event = Mock()
-        mock_event.unit = "lte-vepc/0"
-        self.harness.charm._stored.installed = True
-        self.harness.charm._stored.started = True
-        patch_service_active.return_value = True
-        self.harness.charm._stored.mme_addr = valid_mme
-
-        mme_relation_id = self.harness.add_relation(relation_name="mme", remote_app="lte-vepc")
-        self.harness.add_relation_unit(mme_relation_id, "lte-vepc/0")
-        self.harness.update_relation_data(
-            relation_id=mme_relation_id,
-            app_or_unit="lte-vepc/0",
-            key_values={"mme-addr": valid_mme},
-        )
-
-        self.assertEqual(
-            self.harness.charm.unit.status, ActiveStatus("srsenb started. mme: 0.0.0.0. ")
-        )
-
-    @patch("utils.service_restart")
-    @patch("subprocess.run")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_given_unit_in_relation_data_mme_is_ipv4_and_service_is_not_started_when_mme_relation_changed_then_service_is_not_restarted(  # noqa: E501
-        self, __, patch_subprocess_run, patch_service_restart
-    ):
-        mock_event = Mock()
-        mock_event.unit = "lte-vepc/0"
-        mme_relation_id = self.harness.add_relation(relation_name="mme", remote_app="lte-vepc")
-
-        self.harness.add_relation_unit(mme_relation_id, "lte-vepc/0")
-        self.harness.update_relation_data(
-            relation_id=mme_relation_id,
-            app_or_unit="lte-vepc/0",
-            key_values={"mme-addr": "0.0.0.0"},
-        )
-
-        patch_service_restart.assert_not_called()
-
     # lte-core-interface
-    # @patch("charm.SrsLteCharm._on_lte_core_available")
     @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
