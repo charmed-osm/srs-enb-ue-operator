@@ -142,8 +142,6 @@ class SrsLteCharm(CharmBase):
 
     def _on_lte_core_available(self, event: CoreAvailableEvent) -> None:
         mme_addr = event.mme_ipv4_address
-        if not is_ipv4(mme_addr):
-            return
         logging.info(f"MME IPv4 address from core: {mme_addr}")
         self._stored.mme_addr = mme_addr
         self._configure_srsenb_service()
