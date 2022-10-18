@@ -561,14 +561,15 @@ class TestCharm(unittest.TestCase):
         patch_service_restart.assert_not_called()
 
     # lte-core-interface
-    @patch("charm.SrsLteCharm._on_lte_core_available")
+    # @patch("charm.SrsLteCharm._on_lte_core_available")
     @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
     def test_given_lte_core_provider_charm_when_relation_is_created_on_lte_core_available_is_called(  # noqa: E501
-        self, patch_service_active, _, patch_on_lte_core_available
+        self, patch_service_active, _
     ):
-        relation_data = {"mme_ipv4_address": "0.0.0.0"}
+        mme_ipv4_address = "0.0.0.0"
+        relation_data = {"mme_ipv4_address": mme_ipv4_address}
         relation_id = self.harness.add_relation(
             relation_name=self.relation_name, remote_app=self.remote_app_name
         )
@@ -579,4 +580,5 @@ class TestCharm(unittest.TestCase):
             key_values=relation_data,
         )
 
-        patch_on_lte_core_available.assert_called_once()
+        self.harness.charm._stored
+        self.assertEqual(self.harness.charm._stored.mme_addr, mme_ipv4_address)
