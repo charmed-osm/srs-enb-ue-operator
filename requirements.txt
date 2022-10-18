@@ -3,3 +3,4 @@ psutil
 netifaces
 netaddr
 jinja2
+jsonschema

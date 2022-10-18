@@ -24,6 +24,10 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus
 
+from lib.charms.lte_core_interface.v0.lte_core_interface import (
+    CoreAvailableEvent,
+    CoreRequires,
+)
 from utils import (
     copy_files,
     git_clone,
@@ -128,6 +132,26 @@ class SrsLteCharm(CharmBase):
 
         # Relations hooks
         self.framework.observe(self.on.mme_relation_changed, self._mme_relation_changed)
+
+        # Lte core interface
+        self.core_requirer = CoreRequires(self, "lte-core")
+        self.framework.observe(
+            self.core_requirer.on.lte_core_available,
+            self._on_lte_core_available,
+        )
+
+    def _on_lte_core_available(self, event: CoreAvailableEvent) -> None:
+        mme_addr = event.mme_ipv4_address
+        if not is_ipv4(mme_addr):
+            return
+        logging.info(f"MME IPv4 address from core: {mme_addr}")
+        self._stored.mme_addr = mme_addr
+        self._configure_srsenb_service()
+        if self._stored.started:
+            self.unit.status = MaintenanceStatus("Reloading srsenb")
+            service_restart(SRS_ENB_SERVICE)
+            logging.info("Restarting EnodeB after MME IP address change.")
+        self.unit.status = self._get_current_status()
 
     def _on_install(self, _: InstallEvent) -> None:
         """Triggered on install event."""

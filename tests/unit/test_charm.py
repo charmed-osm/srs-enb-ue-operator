@@ -46,6 +46,8 @@ class TestCharm(unittest.TestCase):
     DETACH_ACTION_PARAMS = {"usim-imsi": None, "usim-opc": None, "usim-k": None}
 
     def setUp(self) -> None:
+        self.remote_app_name = "magma-access-gateway-operator"
+        self.relation_name = "lte-core"
         self.harness = testing.Harness(SrsLteCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
@@ -557,3 +559,58 @@ class TestCharm(unittest.TestCase):
         )
 
         patch_service_restart.assert_not_called()
+
+    # lte-core-interface
+    @patch("charm.SrsLteCharm._on_lte_core_available")
+    @patch("subprocess.run", new=Mock())
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("charm.service_active")
+    def test_given_lte_core_provider_charm_when_relation_is_created_on_lte_core_available_is_called(  # noqa: E501
+        self, patch_service_active, _, patch_on_lte_core_available
+    ):
+        relation_data = {"mme_ipv4_address": "0.0.0.0"}
+        relation_id = self.harness.add_relation(
+            relation_name=self.relation_name, remote_app=self.remote_app_name
+        )
+
+        self.harness.update_relation_data(
+            relation_id=relation_id,
+            app_or_unit=self.remote_app_name,
+            key_values=relation_data,
+        )
+
+        patch_on_lte_core_available.assert_called_once()
+
+    @patch("charm.SrsLteCharm._on_lte_core_available")
+    def test_given_valid_core_information_in_relation_data_when_relation_changed_then_core_available_event_emitted(  # noqa: E501
+        self, patch_on_core_available
+    ):
+        mme_ipv4_address = "0.0.0.0"
+        remote_app_relation_data = {"mme_ipv4_address": mme_ipv4_address}
+        relation_id = self.harness.add_relation(
+            self.relation_name, remote_app=self.remote_app_name
+        )
+
+        self.harness.update_relation_data(
+            relation_id=relation_id,
+            app_or_unit=self.remote_app_name,
+            key_values=remote_app_relation_data,
+        )
+
+        patch_on_core_available.assert_called()
+        args, _ = patch_on_core_available.call_args
+        lte_core_available_event = args[0]
+        self.assertEqual(lte_core_available_event.mme_ipv4_address, mme_ipv4_address)
+
+    @patch("charm.SrsLteCharm._on_lte_core_available")
+    def test_given_core_information_not_in_relation_data_when_relation_changed_then_core_available_event_not_emitted(  # noqa: E501
+        self, patch_on_core_available
+    ):
+        relation_id = self.harness.add_relation(
+            self.relation_name, remote_app=self.remote_app_name
+        )
+        self.harness.update_relation_data(
+            relation_id=relation_id, app_or_unit=self.remote_app_name, key_values={}
+        )
+
+        patch_on_core_available.assert_not_called()
