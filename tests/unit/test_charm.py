@@ -501,7 +501,7 @@ class TestCharm(unittest.TestCase):
     @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
-    def test_given_lte_core_provider_charm_when_relation_is_created_on_lte_core_available_is_called(  # noqa: E501
+    def test_given_lte_core_provider_charm_when_relation_is_created_then_mme_addr_is_updated_in_stored(  # noqa: E501
         self, patch_service_active, _
     ):
         mme_ipv4_address = "0.0.0.0"
