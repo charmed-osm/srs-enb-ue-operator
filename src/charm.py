@@ -24,8 +24,8 @@ from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus
 
 from lib.charms.lte_core_interface.v0.lte_core_interface import (
-    CoreAvailableEvent,
-    CoreRequires,
+    LTECoreAvailableEvent,
+    LTECoreRequires,
 )
 from utils import (
     copy_files,
@@ -128,20 +128,19 @@ class SrsLteCharm(CharmBase):
         self.framework.observe(self.on.detach_ue_action, self._on_detach_ue_action)
         self.framework.observe(self.on.remove_default_gw_action, self._on_remove_default_gw_action)
 
-        # Lte core interface
-        self.core_requirer = CoreRequires(self, "lte-core")
+        self.lte_core_requirer = LTECoreRequires(self, "lte-core")
         self.framework.observe(
-            self.core_requirer.on.lte_core_available,
+            self.lte_core_requirer.on.lte_core_available,
             self._on_lte_core_available,
         )
 
-    def _on_lte_core_available(self, event: CoreAvailableEvent) -> None:
+    def _on_lte_core_available(self, event: LTECoreAvailableEvent) -> None:
         """Triggered on lte_core_available.
 
         Retrieves MME address from relation, configures the srs enb service and restarts it.
         """
         mme_addr = event.mme_ipv4_address
-        logging.info(f"MME IPv4 address from core: {mme_addr}")
+        logging.info(f"MME IPv4 address from LTE core: {mme_addr}")
         self._stored.mme_addr = mme_addr
         self._configure_srsenb_service()
         if self._stored.started:

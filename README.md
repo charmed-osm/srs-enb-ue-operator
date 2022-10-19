@@ -56,5 +56,5 @@ juju run-action <unit> remove-default-gw --wait
 
 ## Relations
 
-- **lte-core**: LTE Core Interface. Retrieves MME ipv4 address from the core network.
+- **lte-core**: The LTE core interface is used to connect to a 4G/LTE core network via its MME IPv4 address.
 

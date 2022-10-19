@@ -516,5 +516,4 @@ class TestCharm(unittest.TestCase):
             key_values=relation_data,
         )
 
-        self.harness.charm._stored
         self.assertEqual(self.harness.charm._stored.mme_addr, mme_ipv4_address)
