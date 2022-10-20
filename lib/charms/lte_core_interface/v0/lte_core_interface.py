@@ -14,7 +14,6 @@ simulated enodeBs and UEs.
 ## Getting Started
 From a charm directory, fetch the library using `charmcraft`:
 
-# TODO: publish the library
 ```shell
 charmcraft fetch-lib charms.lte_core_interface.v0.lte_core_interface
 ```
