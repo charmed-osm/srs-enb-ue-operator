@@ -1,5 +1,6 @@
-ops==1.5.2
+ops == 1.5.2
 psutil
 netifaces
 netaddr
 jinja2
+jsonschema
