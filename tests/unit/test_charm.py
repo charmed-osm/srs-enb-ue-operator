@@ -239,7 +239,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(
             self.harness.model.unit.status, MaintenanceStatus("Generating systemd files")
-        )  # noqa: E501
+        )
 
     @patch("subprocess.run")
     def test_given_service_not_yet_started_when_on_start_then_srsenb_service_is_started(  # noqa: E501

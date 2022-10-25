@@ -9,6 +9,10 @@ import os
 import shutil
 from typing import Optional
 
+from charms.lte_core_interface.v0.lte_core_interface import (
+    LTECoreAvailableEvent,
+    LTECoreRequires,
+)
 from jinja2 import Template
 from ops.charm import (
     ActionEvent,
@@ -23,10 +27,6 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus
 
-from lib.charms.lte_core_interface.v0.lte_core_interface import (
-    LTECoreAvailableEvent,
-    LTECoreRequires,
-)
 from utils import (
     copy_files,
     git_clone,
