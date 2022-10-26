@@ -365,43 +365,95 @@ class TestCharm(unittest.TestCase):
 
         patch_service_restart.assert_not_called()
 
+    @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
-    def test_given_imsi_k_and_opc_when_attach_ue_action_then_srsue_service_is_restarted(  # noqa: E501
-        self, patch_subprocess_run, _
+    def test_given_imsi_k_opc_and_tun_srsue_interface_configured_when_attach_ue_action_then_srsue_service_is_restarted(  # noqa: E501
+        self, patch_subprocess_run, _, patch_get_iface_ip_address
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
+        dummy_ue_ipv4_address = "192.168.128.13"
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
 
         self.harness.charm._on_attach_ue_action(mock_event)
 
         patch_subprocess_run.assert_any_call(
             "systemctl restart srsue", shell=True, stdout=-1, encoding="utf-8"
         )
+        self.assertEqual(
+            mock_event.set_results.call_args,
+            call(
+                {
+                    "status": "ok",
+                    "message": "Attached successfully",
+                    "ue-ipv4": dummy_ue_ipv4_address,
+                }
+            ),
+        )
 
+    @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
-    def test_given_imsi_k_and_opc_when_attached_ue_action_then_srsue_service_sets_action_result(
-        self, patch_subprocess_run, _
+    def test_given_imsi_k_opc_and_tun_srsue_interface_not_configured_when_attach_ue_action_then_srsue_service_sets_no_ip_found_action_result(  # noqa: E501
+        self, patch_subprocess_run, _, patch_get_iface_ip_address
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
+        dummy_ue_ipv4_address = None
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
+
+        self.harness.charm._on_attach_ue_action(mock_event)
+
+        patch_subprocess_run.assert_any_call(
+            "systemctl restart srsue", shell=True, stdout=-1, encoding="utf-8"
+        )
+        self.assertEqual(
+            mock_event.set_results.call_args,
+            call(
+                {
+                    "status": "ok",
+                    "message": "Attached successfully",
+                    "ue-ipv4": "No UE ip found, please make sure the interface is up.",
+                }
+            ),
+        )
+
+    @patch("charm.get_iface_ip_address")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("subprocess.run")
+    def test_given_imsi_k_and_opc_when_attached_ue_action_then_srsue_service_sets_action_result(
+        self, patch_subprocess_run, _, patch_get_iface_ip_address
+    ):
+        mock_event = Mock()
+        mock_event.params = self.ATTACH_ACTION_PARAMS
+        dummy_ue_ipv4_address = "192.168.128.13"
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
 
         self.harness.charm._on_attach_ue_action(mock_event)
 
         self.assertEqual(
             mock_event.set_results.call_args,
-            call({"status": "ok", "message": "Attached successfully"}),
+            call(
+                {
+                    "status": "ok",
+                    "message": "Attached successfully",
+                    "ue-ipv4": dummy_ue_ipv4_address,
+                }
+            ),
         )
 
+    @patch("charm.get_iface_ip_address")
     @patch("charm.service_active")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_imsi_k_ops_and_mme_when_attached_ue_action_then_status_is_active(
-        self, patch_subprocess_run, _, __
+        self, patch_subprocess_run, _, __, patch_get_iface_ip_address
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
+        dummy_ue_ipv4_address = "192.168.128.13"
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
         self.harness.charm._stored.installed = True
         self.harness.charm._stored.started = True
         self.harness.charm._stored.mme_addr = "0.0.0.0"
@@ -448,7 +500,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
-    def test_given_detach_ue_action_when_detach_ue_action_then_srsue_service_sets_action_result(
+    def test_given_detach_ue_action_when_detach_ue_action_then_srsue_service_sets_action_result(  # noqa: E501
         self, _, __
     ):
         mock_event = Mock()
@@ -462,7 +514,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("subprocess.run")
-    def test_given_on_remove_default_gw_action_when_default_gw_action_then_removes_default_gw(
+    def test_given_on_remove_default_gw_action_when_default_gw_action_then_removes_default_gw(  # noqa: E501
         self, patch_subprocess_run
     ):
         mock_event = Mock()
@@ -474,7 +526,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("subprocess.run")
-    def test_given_on_remove_default_gw_action_when_default_gw_action_then_sets_action_result(
+    def test_given_on_remove_default_gw_action_when_default_gw_action_then_sets_action_result(  # noqa: E501
         self, patch_subprocess_run
     ):
         mock_event = Mock()

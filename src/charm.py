@@ -29,6 +29,7 @@ from ops.model import ActiveStatus, MaintenanceStatus
 
 from utils import (
     copy_files,
+    get_iface_ip_address,
     git_clone,
     install_apt_packages,
     ip_from_default_iface,
@@ -209,7 +210,18 @@ class SrsLteCharm(CharmBase):
         service_restart(SRS_UE_SERVICE)
         self._stored.ue_attached = True
         self.unit.status = self._get_current_status()
-        event.set_results({"status": "ok", "message": "Attached successfully"})
+        if ue_ip := get_iface_ip_address("tun_srsue"):
+            event.set_results(
+                {"status": "ok", "message": "Attached successfully", "ue-ipv4": ue_ip}
+            )
+        else:
+            event.set_results(
+                {
+                    "status": "ok",
+                    "message": "Attached successfully",
+                    "ue-ipv4": "No UE ip found, please make sure the interface is up.",
+                }
+            )
 
     def _on_detach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on detach_ue action."""
