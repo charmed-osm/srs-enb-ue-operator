@@ -138,13 +138,13 @@ def ip_from_iface(subnet: str) -> Optional[str]:
 
 
 def get_iface_ip_address(iface: str) -> Optional[str]:
-    """Get the UE IP address.
+    """Get the IP address of the given interface.
 
     Args:
         iface: The interface name.
 
     Returns:
-        str: UE IP address
+        str: UE's IP address.
     """
     if ue_ip := netifaces.ifaddresses(iface)[AF_INET][0]["addr"]:
         return ue_ip
