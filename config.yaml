@@ -16,12 +16,12 @@ options:
     type: string
     description: |
       EnodeB Mobile Country Code (MCC).
-    default: '01'
+    default: '001'
   enb-mnc:
     type: string
     description: |
       EnodeB Mobile Network Code (MNC).
-    default: '001'
+    default: '01'
   enb-rf-device-name:
     type: string
     description: |

@@ -4,17 +4,17 @@ Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (S
 
 ## Usage
 
-Create a YAML configuration file with the necessary charm config:
+If you wish to change the default configuration, create a YAML configuration file with fields you would like to change:
 
 ```yaml
 ---
 srs-enb-ue:
-  bind-address-subnet: <ipv4 address>
-  enb-name: <enb name>
-  enb-mcc: <mcc>
-  enb-mnc: <mnc default>
-  enb-rf-device-name: <zmq>
-  enb-rf-device-args: <RF Device Name.> #for example: "fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6"
+  bind-address-subnet: <Local IP address to bind for GTP and S1AP connection.>
+  enb-name: <eNodeB name.>
+  enb-mcc: <EnodeB Mobile Country Code (MCC).>
+  enb-mnc: <EnodeB Mobile Network Code (MNC).>
+  enb-rf-device-name: <RF Device Name.>
+  enb-rf-device-args: <RF Device Arguments.> 
   ue-usim-algo: <The authentication algorithm to use (MILENAGE or XOR).>
   ue-nas-apn: <NAS Access Point Name (APN).>
   ue-device-name: <UE Device Name.>

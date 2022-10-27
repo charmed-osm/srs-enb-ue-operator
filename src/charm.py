@@ -10,11 +10,13 @@ import os
 import shutil
 from typing import Any, Optional
 
+import netifaces  # type: ignore[import]
 from charms.lte_core_interface.v0.lte_core_interface import (
     LTECoreAvailableEvent,
     LTECoreRequires,
 )
 from jinja2 import Template
+from netifaces import AF_INET
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -120,8 +122,6 @@ class SrsLteCharm(CharmBase):
 
     def _on_install(self, _: InstallEvent) -> None:
         """Triggered on install event."""
-        if not self.unit.is_leader():
-            return
         self.unit.status = MaintenanceStatus("Installing apt packages")
         install_apt_packages(APT_REQUIREMENTS)
 
@@ -141,30 +141,23 @@ class SrsLteCharm(CharmBase):
         self._configure_srsenb_service()
 
         service_enable(SRS_ENB_SERVICE)
-        self._set_peer_data("installed", True)
 
     def _on_start(self, _: StartEvent) -> None:
         """Triggered on start event."""
-        if not self.unit.is_leader():
-            return
         self.unit.status = MaintenanceStatus("Starting srsenb")
         service_start(SRS_ENB_SERVICE)
-        self._set_peer_data("started", True)
-        self.unit.status = ActiveStatus(self._active_status_msg)
+        self.unit.status = ActiveStatus("srsenb started.")
 
     def _on_stop(self, _: StopEvent) -> None:
         """Triggered on stop event."""
-        if not self.unit.is_leader():
-            return
         self._reset_environment()
         service_stop(SRS_ENB_SERVICE)
-        self._set_peer_data("started", False)
         self.unit.status = BlockedStatus("Unit is down, service has stopped")
 
     def _on_config_changed(self, _: ConfigChangedEvent) -> None:
         """Triggered on config changed event."""
         self._configure_srsenb_service()
-        if self._get_peer_data("started"):
+        if service_active(SRS_ENB_SERVICE):
             self.unit.status = MaintenanceStatus("Reloading srsenb")
             service_restart(SRS_ENB_SERVICE)
         self.unit.status = ActiveStatus(self._active_status_msg)
@@ -183,35 +176,27 @@ class SrsLteCharm(CharmBase):
         self._set_peer_data("mme_addr", event.mme_ipv4_address)
         logging.info(f"MME IPv4 address from LTE core: {event.mme_ipv4_address}")
         self._configure_srsenb_service()
-        if self._get_peer_data("started"):
+        if service_active(SRS_ENB_SERVICE):
             self.unit.status = MaintenanceStatus("Reloading srsenb.")
             service_restart(SRS_ENB_SERVICE)
-            logging.info("Restarting EnodeB after MME IP address change.")
+            logging.info(f"Restarting EnodeB after MME IP address change. MME address: {self._mme_addr}")
         self.unit.status = ActiveStatus(self._active_status_msg)
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on attach_ue action."""
-        if not self.unit.is_leader():
-            return
-        self._set_peer_data("ue_usim_imsi", event.params["usim-imsi"])
-        self._set_peer_data("ue_usim_k", event.params["usim-k"])
-        self._set_peer_data("ue_usim_opc", event.params["usim-opc"])
-        self._configure_srsue_service()
+        self._configure_srsue_service(
+            event.params["usim-imsi"],
+            event.params["usim-k"],
+            event.params["usim-opc"],
+        )
         service_restart(SRS_UE_SERVICE)
-        self._set_peer_data("ue_attached", True)
         self.unit.status = ActiveStatus(self._active_status_msg)
         event.set_results({"status": "ok", "message": "Attached successfully"})
 
     def _on_detach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on detach_ue action."""
-        if not self.unit.is_leader():
-            return
-        self._set_peer_data("ue_usim_imsi", None)
-        self._set_peer_data("ue_usim_k", None)
-        self._set_peer_data("ue_usim_opc", None)
         service_stop(SRS_UE_SERVICE)
-        self._configure_srsue_service()
-        self._set_peer_data("ue_attached", False)
+        self._configure_srsue_service(None, None, None)  # type: ignore[arg-type]
         self.unit.status = ActiveStatus(self._active_status_msg)
         event.set_results({"status": "ok", "message": "Detached successfully"})
 
@@ -228,10 +213,12 @@ class SrsLteCharm(CharmBase):
             service_path=SRS_ENB_SERVICE_PATH,
         )
 
-    def _configure_srsue_service(self) -> None:
+    def _configure_srsue_service(
+        self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str
+    ) -> None:
         """Configures srs ue service."""
         self._configure_service(
-            command=self._get_srsue_command(),
+            command=self._get_srsue_command(ue_usim_imsi, ue_usim_k, ue_usim_opc),
             service_template=SRS_UE_SERVICE_TEMPLATE,
             service_path=SRS_UE_SERVICE_PATH,
         )
@@ -274,15 +261,15 @@ class SrsLteCharm(CharmBase):
         )
         return " ".join(srsenb_command)
 
-    def _get_srsue_command(self) -> str:
+    def _get_srsue_command(self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str) -> str:
         """Returns srs ue command."""
         srsue_command = [SRS_UE_BINARY]
-        if self._get_peer_data("ue_usim_imsi"):
+        if ue_usim_imsi:
             srsue_command.extend(
                 (
-                    f"--usim.imsi={self._get_peer_data('ue_usim_imsi')}",
-                    f"--usim.k={self._get_peer_data('ue_usim_k')}",
-                    f"--usim.opc={self._get_peer_data('ue_usim_opc')}",
+                    f"--usim.imsi={ue_usim_imsi}",
+                    f"--usim.k={ue_usim_k}",
+                    f"--usim.opc={ue_usim_opc}",
                 )
             )
         srsue_command.extend(
@@ -315,15 +302,19 @@ class SrsLteCharm(CharmBase):
     def _active_status_msg(self) -> str:
         """Returns msg of current status."""
         status_msg = ""
-        if self._get_peer_data("installed"):
-            status_msg = "SW installed."
-        if self._get_peer_data("started") and service_active(SRS_ENB_SERVICE):
+        if service_active(SRS_ENB_SERVICE):
             status_msg = "srsenb started. "
             if mme_addr := self._mme_addr:
                 status_msg += f"mme: {mme_addr}. "
-            if self._get_peer_data("ue_attached") and service_active(SRS_UE_SERVICE):
+            if self._ue_attached and service_active(SRS_UE_SERVICE):
                 status_msg += "ue attached. "
         return status_msg
+
+    @property
+    def _ue_attached(self) -> bool:
+        if netifaces.ifaddresses("tun_srsue")[AF_INET][0]["addr"]:
+            return True
+        return False
 
     @property
     def _mme_addr(self) -> Optional[str]:
