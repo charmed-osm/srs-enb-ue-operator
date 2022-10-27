@@ -430,7 +430,7 @@ class TestCharm(unittest.TestCase):
         self.harness.update_relation_data(
             relation_id=self.peer_relation_id,
             app_or_unit=self.harness.charm.app.name,
-            key_values={"mme_addr": json.dumps("0.0.0.0")},
+            key_values={"mme_ipv4_address": json.dumps("0.0.0.0")},
         )
         self.harness.charm.ue_attached = True
 

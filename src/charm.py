@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import shutil
-from typing import Any, Optional
+from typing import Optional
 
 import netifaces  # type: ignore[import]
 from charms.lte_core_interface.v0.lte_core_interface import (
@@ -173,13 +173,18 @@ class SrsLteCharm(CharmBase):
         """
         if not self.unit.is_leader():
             return
-        self._set_peer_data("mme_addr", event.mme_ipv4_address)
+        if not self.model.get_relation("replicas"):
+            event.fail("Peer relation not created yet")  # type: ignore[attr-defined]
+            return
+        self.model.get_relation("replicas").data[self.app]["mme_ipv4_address"] = json.dumps(event.mme_ipv4_address)  # type: ignore[union-attr]  # noqa: E501
         logging.info(f"MME IPv4 address from LTE core: {event.mme_ipv4_address}")
         self._configure_srsenb_service()
         if service_active(SRS_ENB_SERVICE):
             self.unit.status = MaintenanceStatus("Reloading srsenb.")
             service_restart(SRS_ENB_SERVICE)
-            logging.info(f"Restarting EnodeB after MME IP address change. MME address: {self._mme_addr}")
+            logging.info(
+                f"Restarting EnodeB after MME IP address change. MME address: {self._mme_addr}"
+            )
         self.unit.status = ActiveStatus(self._active_status_msg)
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
@@ -323,9 +328,10 @@ class SrsLteCharm(CharmBase):
         Returns:
             str: mme_addr
         """
-        if not self._get_peer_data("mme_addr"):
+        if not self.model.get_relation("replicas"):
             return None
-        return self._get_peer_data("mme_addr")
+        data = self.model.get_relation("replicas").data[self.app].get("mme_ipv4_address", "")  # type: ignore[union-attr]  # noqa: E501
+        return json.loads(data) if data else None
 
     @property
     def _bind_address(self) -> Optional[str]:
@@ -335,15 +341,6 @@ class SrsLteCharm(CharmBase):
             if (bind_address := self.model.config.get("bind-address"))
             else ip_from_default_iface()
         )
-
-    def _set_peer_data(self, key: str, data: Any) -> None:
-        """Put information into the peer data bucket instead of `StoredState`."""
-        self.model.get_relation("replicas").data[self.app][key] = json.dumps(data)  # type: ignore[union-attr]  # noqa: E501
-
-    def _get_peer_data(self, key: str) -> Any:
-        """Retrieve information from the peer data bucket instead of `StoredState`."""
-        data = self.model.get_relation("replicas").data[self.app].get(key, "")  # type: ignore[union-attr]  # noqa: E501
-        return json.loads(data) if data else {}
 
 
 if __name__ == "__main__":
