@@ -211,14 +211,11 @@ class SrsLteCharm(CharmBase):
         self._stored.ue_attached = True
         self.unit.status = self._get_current_status()
         if ue_ip := get_iface_ip_address("tun_srsue"):
-            event.set_results(
-                {"status": "ok", "message": "Attached successfully", "ue-ipv4": ue_ip}
-            )
+            event.set_results({"message": "Attached successfully.", "ue-ipv4": ue_ip})
         else:
             event.set_results(
                 {
-                    "status": "ok",
-                    "message": "Attached successfully",
+                    "message": "Attach failed. Make sure you have provided the right UE configuration.",  # noqa: E501
                     "ue-ipv4": "No UE ip found, please make sure the interface is up.",
                 }
             )

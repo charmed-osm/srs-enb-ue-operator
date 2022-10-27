@@ -385,8 +385,7 @@ class TestCharm(unittest.TestCase):
             mock_event.set_results.call_args,
             call(
                 {
-                    "status": "ok",
-                    "message": "Attached successfully",
+                    "message": "Attached successfully.",
                     "ue-ipv4": dummy_ue_ipv4_address,
                 }
             ),
@@ -412,8 +411,7 @@ class TestCharm(unittest.TestCase):
             mock_event.set_results.call_args,
             call(
                 {
-                    "status": "ok",
-                    "message": "Attached successfully",
+                    "message": "Attach failed. Make sure you have provided the right UE configuration.",  # noqa: E501
                     "ue-ipv4": "No UE ip found, please make sure the interface is up.",
                 }
             ),
@@ -436,8 +434,7 @@ class TestCharm(unittest.TestCase):
             mock_event.set_results.call_args,
             call(
                 {
-                    "status": "ok",
-                    "message": "Attached successfully",
+                    "message": "Attached successfully.",
                     "ue-ipv4": dummy_ue_ipv4_address,
                 }
             ),
