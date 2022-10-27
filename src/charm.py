@@ -4,10 +4,11 @@
 
 """Charm for the SRS RAN simulator."""
 
+import json
 import logging
 import os
 import shutil
-from typing import Optional
+from typing import Any, Optional
 
 from charms.lte_core_interface.v0.lte_core_interface import (
     LTECoreAvailableEvent,
@@ -23,16 +24,14 @@ from ops.charm import (
     StopEvent,
     UpdateStatusEvent,
 )
-from ops.framework import StoredState
 from ops.main import main
-from ops.model import ActiveStatus, MaintenanceStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
 from utils import (
     copy_files,
     git_clone,
     install_apt_packages,
     ip_from_default_iface,
-    ip_from_iface,
     service_active,
     service_enable,
     service_restart,
@@ -66,7 +65,6 @@ CONFIG_PATH = "/config"
 SERVICE_PATH = "/service"
 
 CONFIG_PATHS = {
-    "enb": f"{CONFIG_PATH}/enb.conf",
     "drb": f"{CONFIG_PATH}/drb.conf",
     "rr": f"{CONFIG_PATH}/rr.conf",
     "sib": f"{CONFIG_PATH}/sib.conf",
@@ -75,7 +73,6 @@ CONFIG_PATHS = {
 }
 
 CONFIG_ORIGIN_PATHS = {
-    "enb": f"{SRC_PATH}/srsenb/enb.conf.example",
     "drb": f"{SRC_PATH}/srsenb/drb.conf.example",
     "rr": f"{SRC_PATH}/srsenb/rr.conf.example",
     "sib": f"{SRC_PATH}/srsenb/sib.conf.example",
@@ -99,22 +96,9 @@ SRS_ENB_UE_BUILD_COMMAND = f"cd {BUILD_PATH} && cmake {SRC_PATH} && make -j `npr
 class SrsLteCharm(CharmBase):
     """srsRAN LTE charm."""
 
-    _stored = StoredState()
-
     def __init__(self, *args):
         """Observes various events."""
         super().__init__(*args)
-
-        self._stored.set_default(
-            mme_addr=None,
-            bind_addr=None,
-            ue_usim_imsi=None,
-            ue_usim_k=None,
-            ue_usim_opc=None,
-            installed=False,
-            started=False,
-            ue_attached=False,
-        )
 
         # Basic hooks
         self.framework.observe(self.on.install, self._on_install)
@@ -134,23 +118,10 @@ class SrsLteCharm(CharmBase):
             self._on_lte_core_available,
         )
 
-    def _on_lte_core_available(self, event: LTECoreAvailableEvent) -> None:
-        """Triggered on lte_core_available.
-
-        Retrieves MME address from relation, configures the srs enb service and restarts it.
-        """
-        mme_addr = event.mme_ipv4_address
-        logging.info(f"MME IPv4 address from LTE core: {mme_addr}")
-        self._stored.mme_addr = mme_addr
-        self._configure_srsenb_service()
-        if self._stored.started:
-            self.unit.status = MaintenanceStatus("Reloading srsenb.")
-            service_restart(SRS_ENB_SERVICE)
-            logging.info("Restarting EnodeB after MME IP address change.")
-        self.unit.status = self._get_current_status()
-
     def _on_install(self, _: InstallEvent) -> None:
         """Triggered on install event."""
+        if not self.unit.is_leader():
+            return
         self.unit.status = MaintenanceStatus("Installing apt packages")
         install_apt_packages(APT_REQUIREMENTS)
 
@@ -163,63 +134,85 @@ class SrsLteCharm(CharmBase):
         self.unit.status = MaintenanceStatus("Building srsLTE")
         shell(SRS_ENB_UE_BUILD_COMMAND)
 
-        self.unit.status = MaintenanceStatus("Generating configuration files")
+        self.unit.status = MaintenanceStatus("Copying example configuration files")
         copy_files(origin=CONFIG_ORIGIN_PATHS, destination=CONFIG_PATHS)
 
-        self.unit.status = MaintenanceStatus("Generating systemd files")
+        self.unit.status = MaintenanceStatus("Configuring srs env service")
         self._configure_srsenb_service()
-        self._configure_srsue_service()
 
         service_enable(SRS_ENB_SERVICE)
-        self._stored.installed = True
+        self._set_peer_data("installed", True)
 
     def _on_start(self, _: StartEvent) -> None:
         """Triggered on start event."""
+        if not self.unit.is_leader():
+            return
         self.unit.status = MaintenanceStatus("Starting srsenb")
         service_start(SRS_ENB_SERVICE)
-        self._stored.started = True
-        self.unit.status = self._get_current_status()
+        self._set_peer_data("started", True)
+        self.unit.status = ActiveStatus(self._active_status_msg)
 
     def _on_stop(self, _: StopEvent) -> None:
         """Triggered on stop event."""
+        if not self.unit.is_leader():
+            return
         self._reset_environment()
         service_stop(SRS_ENB_SERVICE)
-        self._stored.started = False
-        self.unit.status = self._get_current_status()
+        self._set_peer_data("started", False)
+        self.unit.status = BlockedStatus("Unit is down, service has stopped")
 
     def _on_config_changed(self, _: ConfigChangedEvent) -> None:
         """Triggered on config changed event."""
-        self._stored.bind_addr = self._get_bind_address()
         self._configure_srsenb_service()
-        if self._stored.started:
+        if self._get_peer_data("started"):
             self.unit.status = MaintenanceStatus("Reloading srsenb")
             service_restart(SRS_ENB_SERVICE)
-        self.unit.status = self._get_current_status()
+        self.unit.status = ActiveStatus(self._active_status_msg)
 
     def _on_update_status(self, _: UpdateStatusEvent) -> None:
         """Triggered on update status event."""
-        self.unit.status = self._get_current_status()
+        self.unit.status = ActiveStatus(self._active_status_msg)
+
+    def _on_lte_core_available(self, event: LTECoreAvailableEvent) -> None:
+        """Triggered on lte_core_available.
+
+        Retrieves MME address from relation, configures the srs enb service and restarts it.
+        """
+        if not self.unit.is_leader():
+            return
+        self._set_peer_data("mme_addr", event.mme_ipv4_address)
+        logging.info(f"MME IPv4 address from LTE core: {event.mme_ipv4_address}")
+        self._configure_srsenb_service()
+        if self._get_peer_data("started"):
+            self.unit.status = MaintenanceStatus("Reloading srsenb.")
+            service_restart(SRS_ENB_SERVICE)
+            logging.info("Restarting EnodeB after MME IP address change.")
+        self.unit.status = ActiveStatus(self._active_status_msg)
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on attach_ue action."""
-        self._stored.ue_usim_imsi = event.params["usim-imsi"]
-        self._stored.ue_usim_k = event.params["usim-k"]
-        self._stored.ue_usim_opc = event.params["usim-opc"]
+        if not self.unit.is_leader():
+            return
+        self._set_peer_data("ue_usim_imsi", event.params["usim-imsi"])
+        self._set_peer_data("ue_usim_k", event.params["usim-k"])
+        self._set_peer_data("ue_usim_opc", event.params["usim-opc"])
         self._configure_srsue_service()
         service_restart(SRS_UE_SERVICE)
-        self._stored.ue_attached = True
-        self.unit.status = self._get_current_status()
+        self._set_peer_data("ue_attached", True)
+        self.unit.status = ActiveStatus(self._active_status_msg)
         event.set_results({"status": "ok", "message": "Attached successfully"})
 
     def _on_detach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on detach_ue action."""
-        self._stored.ue_usim_imsi = None
-        self._stored.ue_usim_k = None
-        self._stored.ue_usim_opc = None
+        if not self.unit.is_leader():
+            return
+        self._set_peer_data("ue_usim_imsi", None)
+        self._set_peer_data("ue_usim_k", None)
+        self._set_peer_data("ue_usim_opc", None)
         service_stop(SRS_UE_SERVICE)
         self._configure_srsue_service()
-        self._stored.ue_attached = False
-        self.unit.status = self._get_current_status()
+        self._set_peer_data("ue_attached", False)
+        self.unit.status = ActiveStatus(self._active_status_msg)
         event.set_results({"status": "ok", "message": "Detached successfully"})
 
     def _on_remove_default_gw_action(self, event: ActionEvent) -> None:
@@ -259,15 +252,14 @@ class SrsLteCharm(CharmBase):
     def _get_srsenb_command(self) -> str:
         """Returns srs enb command."""
         srsenb_command = [SRS_ENB_BINARY]
-        if self._stored.mme_addr:
-            srsenb_command.append(f"--enb.mme_addr={self._stored.mme_addr}")
-        if self._stored.bind_addr:
-            srsenb_command.extend(
-                (
-                    f"--enb.gtp_bind_addr={self._stored.bind_addr}",
-                    f"--enb.s1c_bind_addr={self._stored.bind_addr}",
-                )
+        if self._mme_addr:
+            srsenb_command.append(f"--enb.mme_addr={self._mme_addr}")
+        srsenb_command.extend(
+            (
+                f"--enb.gtp_bind_addr={self._bind_address}",
+                f"--enb.s1c_bind_addr={self._bind_address}",
             )
+        )
         srsenb_command.extend(
             (
                 f'--enb.name={self.config.get("enb-name")}',
@@ -276,7 +268,6 @@ class SrsLteCharm(CharmBase):
                 f'--enb_files.rr_config={CONFIG_PATHS["rr"]}',
                 f'--enb_files.sib_config={CONFIG_PATHS["sib"]}',
                 f'--enb_files.drb_config={CONFIG_PATHS["drb"]}',
-                CONFIG_PATHS["enb"],
                 f'--rf.device_name={self.config.get("enb-rf-device-name")}',
                 f'--rf.device_args={self.config.get("enb-rf-device-args")}',
             )
@@ -286,12 +277,12 @@ class SrsLteCharm(CharmBase):
     def _get_srsue_command(self) -> str:
         """Returns srs ue command."""
         srsue_command = [SRS_UE_BINARY]
-        if self._stored.ue_usim_imsi:
+        if self._get_peer_data("ue_usim_imsi"):
             srsue_command.extend(
                 (
-                    f"--usim.imsi={self._stored.ue_usim_imsi}",
-                    f"--usim.k={self._stored.ue_usim_k}",
-                    f"--usim.opc={self._stored.ue_usim_opc}",
+                    f"--usim.imsi={self._get_peer_data('ue_usim_imsi')}",
+                    f"--usim.k={self._get_peer_data('ue_usim_k')}",
+                    f"--usim.opc={self._get_peer_data('ue_usim_opc')}",
                 )
             )
         srsue_command.extend(
@@ -320,27 +311,48 @@ class SrsLteCharm(CharmBase):
         os.mkdir(CONFIG_PATH)
         os.mkdir(SERVICE_PATH)
 
-    def _get_bind_address(self) -> Optional[str]:
+    @property
+    def _active_status_msg(self) -> str:
+        """Returns msg of current status."""
+        status_msg = ""
+        if self._get_peer_data("installed"):
+            status_msg = "SW installed."
+        if self._get_peer_data("started") and service_active(SRS_ENB_SERVICE):
+            status_msg = "srsenb started. "
+            if mme_addr := self._mme_addr:
+                status_msg += f"mme: {mme_addr}. "
+            if self._get_peer_data("ue_attached") and service_active(SRS_UE_SERVICE):
+                status_msg += "ue attached. "
+        return status_msg
+
+    @property
+    def _mme_addr(self) -> Optional[str]:
+        """Returns the ipv4 address of the mme interface.
+
+        Returns:
+            str: mme_addr
+        """
+        if not self._get_peer_data("mme_addr"):
+            return None
+        return self._get_peer_data("mme_addr")
+
+    @property
+    def _bind_address(self) -> Optional[str]:
         """Returns bind address."""
         return (
-            ip_from_iface(bind_address_subnet)
-            if (bind_address_subnet := self.model.config.get("bind-address-subnet"))
+            bind_address
+            if (bind_address := self.model.config.get("bind-address"))
             else ip_from_default_iface()
         )
 
-    def _get_current_status(self) -> ActiveStatus:
-        """Returns current status."""
-        status_type = ActiveStatus
-        status_msg = ""
-        if self._stored.installed:
-            status_msg = "SW installed."
-        if self._stored.started and service_active(SRS_ENB_SERVICE):
-            status_msg = "srsenb started. "
-            if mme_addr := self._stored.mme_addr:
-                status_msg += f"mme: {mme_addr}. "
-            if self._stored.ue_attached and service_active(SRS_UE_SERVICE):
-                status_msg += "ue attached. "
-        return status_type(status_msg)
+    def _set_peer_data(self, key: str, data: Any) -> None:
+        """Put information into the peer data bucket instead of `StoredState`."""
+        self.model.get_relation("replicas").data[self.app][key] = json.dumps(data)  # type: ignore[union-attr]  # noqa: E501
+
+    def _get_peer_data(self, key: str) -> Any:
+        """Retrieve information from the peer data bucket instead of `StoredState`."""
+        data = self.model.get_relation("replicas").data[self.app].get(key, "")  # type: ignore[union-attr]  # noqa: E501
+        return json.loads(data) if data else {}
 
 
 if __name__ == "__main__":

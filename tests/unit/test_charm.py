@@ -1,11 +1,12 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
 import unittest
 from unittest.mock import Mock, call, mock_open, patch
 
 from ops import testing
-from ops.model import ActiveStatus, MaintenanceStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
 from charm import SrsLteCharm
 
@@ -36,7 +37,7 @@ class MockOpen:
 
 
 class TestCharm(unittest.TestCase):
-
+    maxDiff = None
     SRC_PATH = "/srsLTE"
     ATTACH_ACTION_PARAMS = {
         "usim-imsi": "whatever imsi",
@@ -51,6 +52,9 @@ class TestCharm(unittest.TestCase):
         self.harness = testing.Harness(SrsLteCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
+        self.peer_relation_id = self.harness.add_relation("replicas", self.harness.charm.app.name)
+        self.harness.add_relation_unit(self.peer_relation_id, self.harness.charm.unit.name)
+        self.harness.set_leader(True)
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.mkdir")
@@ -157,7 +161,6 @@ class TestCharm(unittest.TestCase):
         self.harness.charm.on.install.emit()
 
         calls = [
-            call("/srsLTE/srsenb/enb.conf.example", "/config/enb.conf"),
             call("/srsLTE/srsenb/drb.conf.example", "/config/drb.conf"),
             call("/srsLTE/srsenb/rr.conf.example", "/config/rr.conf"),
             call("/srsLTE/srsenb/sib.conf.example", "/config/sib.conf"),
@@ -176,19 +179,13 @@ class TestCharm(unittest.TestCase):
 
         with open("templates/srsenb.service", "r") as f:
             srsenb_service_content = f.read()
-        with open("templates/srsue.service", "r") as f:
-            srsue_service_content = f.read()
 
         with patch("builtins.open") as mock_open:
             mock_open_read_srsenb_template = MockOpen(read_data=srsenb_service_content)
             mock_open_write_srsenb_service = MockOpen()
-            mock_open_read_srsue_template = MockOpen(read_data=srsue_service_content)
-            mock_open_write_srsue_service = MockOpen()
             mock_open.side_effect = [
                 mock_open_read_srsenb_template,
                 mock_open_write_srsenb_service,
-                mock_open_read_srsue_template,
-                mock_open_write_srsue_service,
             ]
             self.harness.charm.on.install.emit()
 
@@ -202,10 +199,34 @@ class TestCharm(unittest.TestCase):
             "Restart=always\n"
             "RestartSec=1\n"
             "User=root\n"
-            "ExecStart=/build/srsenb/src/srsenb --enb.name=dummyENB01 --enb.mcc=901 --enb.mnc=70 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf /config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n\n"  # noqa: E501, W505
+            "ExecStart=/build/srsenb/src/srsenb --enb.gtp_bind_addr=10.0.0.8 --enb.s1c_bind_addr=10.0.0.8 --enb.name=dummyENB01 --enb.mcc=01 --enb.mnc=001 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n\n"  # noqa: E501, W505
             "[Install]\n"
             "WantedBy=multi-user.target"
         )
+
+        self.assertEqual(mock_open_write_srsenb_service.written_data, srsenb_expected_service)
+
+    @patch("os.mkdir")
+    @patch("shutil.copy")
+    @patch("shutil.rmtree")
+    @patch("subprocess.run")
+    def test_given_service_template_when_attach_ue_action_emitted_then_srsue_service_file_is_rendered(  # noqa: E501
+        self, _, __, ___, ____
+    ):
+        with open("templates/srsue.service", "r") as f:
+            srsue_service_content = f.read()
+
+        with patch("builtins.open") as mock_open:
+            mock_open_read_srsue_template = MockOpen(read_data=srsue_service_content)
+            mock_open_write_srsue_service = MockOpen()
+            mock_open.side_effect = [
+                mock_open_read_srsue_template,
+                mock_open_write_srsue_service,
+            ]
+            event = Mock()
+            event.params = self.ATTACH_ACTION_PARAMS
+            self.harness.charm._on_attach_ue_action(event)
+
         srsue_expected_service = (
             "[Unit]\n"
             "Description=Srs User Emulator Service\n"
@@ -215,7 +236,7 @@ class TestCharm(unittest.TestCase):
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
-            "ExecStart=/build/srsue/src/srsue --usim.algo=milenage --nas.apn=oai.ipv4 --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /config/ue.conf\n"  # noqa: E501, W505
+            "ExecStart=/build/srsue/src/srsue --usim.imsi=whatever imsi --usim.k=whatever k --usim.opc=whatever opc --usim.algo=milenage --nas.apn=oai.ipv4 --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /config/ue.conf\n"  # noqa: E501, W505
             "User=root\n"
             "KillSignal=SIGINT\n"
             "TimeoutStopSec=10\n"
@@ -224,7 +245,6 @@ class TestCharm(unittest.TestCase):
             "WantedBy=multi-user.target"
         )
 
-        self.assertEqual(mock_open_write_srsenb_service.written_data, srsenb_expected_service)
         self.assertEqual(mock_open_write_srsue_service.written_data, srsue_expected_service)
 
     @patch("builtins.open", new_callable=mock_open)
@@ -238,7 +258,7 @@ class TestCharm(unittest.TestCase):
         self.harness.charm.on.install.emit()
 
         self.assertEqual(
-            self.harness.model.unit.status, MaintenanceStatus("Generating systemd files")
+            self.harness.model.unit.status, MaintenanceStatus("Configuring srs env service")
         )
 
     @patch("subprocess.run")
@@ -299,10 +319,16 @@ class TestCharm(unittest.TestCase):
     @patch("os.mkdir")
     @patch("subprocess.run")
     def test_given_on_stop_when_on_stop_then_status_is_active(self, _, __, ___):
-        self.harness.charm._stored.installed = True
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"installed": True},
+        )
         self.harness.charm.on.stop.emit()
 
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("SW installed."))
+        self.assertEqual(
+            self.harness.charm.unit.status, BlockedStatus("Unit is down, service has stopped")
+        )
 
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
@@ -322,7 +348,11 @@ class TestCharm(unittest.TestCase):
         self, _, __
     ):
         key_values = {}
-        self.harness.charm._stored.installed = True
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"installed": json.dumps(True)},
+        )
 
         self.harness.update_config(key_values=key_values)
 
@@ -345,7 +375,11 @@ class TestCharm(unittest.TestCase):
         self, _, patch_subprocess_run
     ):
         key_values = {}
-        self.harness.charm._stored.started = True
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"started": json.dumps(True)},
+        )
 
         self.harness.update_config(key_values=key_values)
 
@@ -402,9 +436,21 @@ class TestCharm(unittest.TestCase):
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
-        self.harness.charm._stored.installed = True
-        self.harness.charm._stored.started = True
-        self.harness.charm._stored.mme_addr = "0.0.0.0"
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"installed": json.dumps(True)},
+        )
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"started": json.dumps(True)},
+        )
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"mme_addr": json.dumps("0.0.0.0")},
+        )
         self.harness.charm.ue_attached = True
 
         self.harness.charm._on_attach_ue_action(mock_event)
@@ -422,10 +468,22 @@ class TestCharm(unittest.TestCase):
     ):
         mock_event = Mock()
         mock_event.params = self.DETACH_ACTION_PARAMS
-        self.harness.charm._stored.installed = True
-        self.harness.charm._stored.started = True
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"installed": json.dumps(True)},
+        )
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"started": json.dumps(True)},
+        )
         patch_service_active.return_value = True
-        self.harness.charm._stored.ue_attached = False
+        self.harness.update_relation_data(
+            relation_id=self.peer_relation_id,
+            app_or_unit=self.harness.charm.app.name,
+            key_values={"ue_attached": json.dumps(False)},
+        )
 
         self.harness.charm._on_detach_ue_action(mock_event)
 
@@ -501,7 +559,7 @@ class TestCharm(unittest.TestCase):
     @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
-    def test_given_lte_core_provider_charm_when_relation_is_created_then_mme_addr_is_updated_in_stored(  # noqa: E501
+    def test_given_lte_core_provider_charm_when_relation_is_created_then_mme_addr_is_updated_in_peer_relation_data(  # noqa: E501
         self, patch_service_active, _
     ):
         mme_ipv4_address = "0.0.0.0"
@@ -516,4 +574,4 @@ class TestCharm(unittest.TestCase):
             key_values=relation_data,
         )
 
-        self.assertEqual(self.harness.charm._stored.mme_addr, mme_ipv4_address)
+        self.assertEqual(self.harness.charm._mme_addr, mme_ipv4_address)

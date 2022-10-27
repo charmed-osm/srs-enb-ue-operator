@@ -14,7 +14,7 @@ srs-enb-ue:
   enb-mcc: <mcc>
   enb-mnc: <mnc default>
   enb-rf-device-name: <zmq>
-  enb-rf-device-args: <RF Device Name.>
+  enb-rf-device-args: <RF Device Name.> #for example: "fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6"
   ue-usim-algo: <The authentication algorithm to use (MILENAGE or XOR).>
   ue-nas-apn: <NAS Access Point Name (APN).>
   ue-device-name: <UE Device Name.>
