@@ -68,6 +68,7 @@ CONFIG_PATH = "/config"
 SERVICE_PATH = "/service"
 
 CONFIG_PATHS = {
+    "enb": f"{CONFIG_PATH}/enb.conf",
     "drb": f"{CONFIG_PATH}/drb.conf",
     "rr": f"{CONFIG_PATH}/rr.conf",
     "sib": f"{CONFIG_PATH}/sib.conf",
@@ -76,6 +77,7 @@ CONFIG_PATHS = {
 }
 
 CONFIG_ORIGIN_PATHS = {
+    "enb": f"{SRC_PATH}/srsenb/enb.conf.example",
     "drb": f"{SRC_PATH}/srsenb/drb.conf.example",
     "rr": f"{SRC_PATH}/srsenb/rr.conf.example",
     "sib": f"{SRC_PATH}/srsenb/sib.conf.example",
