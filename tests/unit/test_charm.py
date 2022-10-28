@@ -365,11 +365,12 @@ class TestCharm(unittest.TestCase):
 
         patch_service_restart.assert_not_called()
 
+    @patch("charm.service_active", side_effect=[True, False])
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_imsi_k_opc_and_tun_srsue_interface_configured_when_attach_ue_action_then_srsue_service_is_restarted(  # noqa: E501
-        self, patch_subprocess_run, _, patch_get_iface_ip_address
+        self, patch_subprocess_run, _, patch_get_iface_ip_address, __
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
@@ -391,11 +392,12 @@ class TestCharm(unittest.TestCase):
             ),
         )
 
+    @patch("charm.service_active", side_effect=[True, False])
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_imsi_k_opc_and_tun_srsue_interface_not_configured_when_attach_ue_action_then_srsue_service_sets_no_ip_found_action_result(  # noqa: E501
-        self, patch_subprocess_run, _, patch_get_iface_ip_address
+        self, patch_subprocess_run, _, patch_get_iface_ip_address, __
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
@@ -408,20 +410,36 @@ class TestCharm(unittest.TestCase):
             "systemctl restart srsue", shell=True, stdout=-1, encoding="utf-8"
         )
         self.assertEqual(
-            mock_event.set_results.call_args,
-            call(
-                {
-                    "message": "Attach failed. Make sure you have provided the right UE configuration.",  # noqa: E501
-                    "ue-ipv4": "No UE ip found, please make sure the interface is up.",
-                }
-            ),
+            mock_event.fail.call_args,
+            call("Failed to attach. Make sure you have provided the right configuration."),
+        )
+        
+    @patch("charm.service_active")
+    @patch("charm.get_iface_ip_address")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("subprocess.run")
+    def test_given_ue_running_when_attach_ue_action_then_event_fails(  # noqa: E501
+        self, patch_subprocess_run, _, patch_get_iface_ip_address, patch_service_active
+    ):
+        mock_event = Mock()
+        mock_event.params = self.ATTACH_ACTION_PARAMS
+        dummy_ue_ipv4_address = None
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
+        patch_service_active.return_value = True
+
+        self.harness.charm._on_attach_ue_action(mock_event)
+
+        self.assertEqual(
+            mock_event.fail.call_args,
+            call("Failed to attach. UE already running, please detach first."),
         )
 
+    @patch("charm.service_active", side_effect=[True, False])
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_imsi_k_and_opc_when_attached_ue_action_then_srsue_service_sets_action_result(
-        self, patch_subprocess_run, _, patch_get_iface_ip_address
+        self, patch_subprocess_run, _, patch_get_iface_ip_address, patch_service_active
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
@@ -440,12 +458,12 @@ class TestCharm(unittest.TestCase):
             ),
         )
 
+    @patch("charm.service_active", side_effect=[True, False, True, True])
     @patch("charm.get_iface_ip_address")
-    @patch("charm.service_active")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_imsi_k_ops_and_mme_when_attached_ue_action_then_status_is_active(
-        self, patch_subprocess_run, _, __, patch_get_iface_ip_address
+        self, patch_subprocess_run, _, patch_get_iface_ip_address, __
     ):
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS

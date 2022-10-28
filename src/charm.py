@@ -203,6 +203,12 @@ class SrsLteCharm(CharmBase):
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on attach_ue action."""
+        if not service_active(SRS_ENB_SERVICE):
+            event.fail("Failed to attach. The EnodeB is not running.")
+            return
+        if service_active(SRS_UE_SERVICE):
+            event.fail("Failed to attach. UE already running, please detach first.")
+            return
         self._stored.ue_usim_imsi = event.params["usim-imsi"]
         self._stored.ue_usim_k = event.params["usim-k"]
         self._stored.ue_usim_opc = event.params["usim-opc"]
@@ -213,12 +219,7 @@ class SrsLteCharm(CharmBase):
         if ue_ip := get_iface_ip_address("tun_srsue"):
             event.set_results({"message": "Attached successfully.", "ue-ipv4": ue_ip})
         else:
-            event.set_results(
-                {
-                    "message": "Attach failed. Make sure you have provided the right UE configuration.",  # noqa: E501
-                    "ue-ipv4": "No UE ip found, please make sure the interface is up.",
-                }
-            )
+            event.fail("Failed to attach. Make sure you have provided the right configuration.")
 
     def _on_detach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on detach_ue action."""

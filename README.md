@@ -57,8 +57,3 @@ juju run-action <unit> remove-default-gw --wait
 ## Relations
 
 - **lte-core**: The LTE core interface is used to connect to a 4G/LTE core network via its MME IPv4 address.
-
-### Sample charms implementing the interface
-
-- Provider charm: [magma-access-gateway-operator](https://github.com/canonical/magma-access-gateway-operator)
-- Requirer charm: [srs-enb-ue-operator](https://github.com/charmed-osm/srs-enb-ue-operator)
