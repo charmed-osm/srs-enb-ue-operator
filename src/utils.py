@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
 from netaddr.core import AddrFormatError  # type: ignore[import]
+from netifaces import AF_INET
 
 logger = logging.getLogger(__name__)
 
@@ -134,3 +135,18 @@ def ip_from_iface(subnet: str) -> Optional[str]:
 
     except AddrFormatError:
         return None
+
+
+def get_iface_ip_address(iface: str) -> Optional[str]:
+    """Get the IP address of the given interface.
+
+    Args:
+        iface: The interface name.
+
+    Returns:
+        str: UE's IP address.
+    """
+    if ue_ip := netifaces.ifaddresses(iface)[AF_INET][0]["addr"]:
+        return ue_ip
+    logging.error(f"Could not get IP address. {iface} is not a valid interface.")
+    return None
