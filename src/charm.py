@@ -270,6 +270,7 @@ class SrsLteCharm(CharmBase):
                 f'--enb_files.rr_config={CONFIG_PATHS["rr"]}',
                 f'--enb_files.sib_config={CONFIG_PATHS["sib"]}',
                 f'--enb_files.drb_config={CONFIG_PATHS["drb"]}',
+                CONFIG_PATHS["enb"],
                 f'--rf.device_name={self.config.get("enb-rf-device-name")}',
                 f'--rf.device_args={self.config.get("enb-rf-device-args")}',
             )

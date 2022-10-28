@@ -9,7 +9,7 @@ If you wish to change the default configuration, create a YAML configuration fil
 ```yaml
 ---
 srs-enb-ue:
-  bind-address-subnet: <Local IP address to bind for GTP and S1AP connection.>
+  bind-address: <Local IP address to bind for GTP and S1AP connection.>
   enb-name: <eNodeB name.>
   enb-mcc: <EnodeB Mobile Country Code (MCC).>
   enb-mnc: <EnodeB Mobile Network Code (MNC).>
