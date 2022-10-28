@@ -413,7 +413,7 @@ class TestCharm(unittest.TestCase):
             mock_event.fail.call_args,
             call("Failed to attach. Make sure you have provided the right configuration."),
         )
-        
+
     @patch("charm.service_active")
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
