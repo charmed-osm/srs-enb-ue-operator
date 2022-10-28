@@ -31,6 +31,7 @@ from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
 from utils import (
     copy_files,
+    get_iface_ip_address,
     git_clone,
     install_apt_packages,
     ip_from_default_iface,
@@ -67,6 +68,7 @@ CONFIG_PATH = "/config"
 SERVICE_PATH = "/service"
 
 CONFIG_PATHS = {
+    "enb": f"{CONFIG_PATH}/enb.conf",
     "drb": f"{CONFIG_PATH}/drb.conf",
     "rr": f"{CONFIG_PATH}/rr.conf",
     "sib": f"{CONFIG_PATH}/sib.conf",
@@ -75,6 +77,7 @@ CONFIG_PATHS = {
 }
 
 CONFIG_ORIGIN_PATHS = {
+    "enb": f"{SRC_PATH}/srsenb/enb.conf.example",
     "drb": f"{SRC_PATH}/srsenb/drb.conf.example",
     "rr": f"{SRC_PATH}/srsenb/rr.conf.example",
     "sib": f"{SRC_PATH}/srsenb/sib.conf.example",
@@ -189,14 +192,24 @@ class SrsLteCharm(CharmBase):
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on attach_ue action."""
+        if not service_active(SRS_ENB_SERVICE):
+            event.fail("Failed to attach. The EnodeB is not running.")
+            return
+        if service_active(SRS_UE_SERVICE):
+            event.fail("Failed to attach. UE already running, please detach first.")
+            return
         self._configure_srsue_service(
             event.params["usim-imsi"],
             event.params["usim-k"],
             event.params["usim-opc"],
         )
         service_restart(SRS_UE_SERVICE)
-        self.unit.status = ActiveStatus(self._active_status_msg)
-        event.set_results({"status": "ok", "message": "Attached successfully"})
+        
+        if ue_ip := get_iface_ip_address("tun_srsue"):
+            event.set_results({"message": "Attached successfully.", "ue-ipv4": ue_ip})
+            self.unit.status = ActiveStatus(self._active_status_msg)
+        else:
+            event.fail("Failed to attach. Make sure you have provided the right configuration.")
 
     def _on_detach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on detach_ue action."""
@@ -260,6 +273,7 @@ class SrsLteCharm(CharmBase):
                 f'--enb_files.rr_config={CONFIG_PATHS["rr"]}',
                 f'--enb_files.sib_config={CONFIG_PATHS["sib"]}',
                 f'--enb_files.drb_config={CONFIG_PATHS["drb"]}',
+                CONFIG_PATHS["enb"],
                 f'--rf.device_name={self.config.get("enb-rf-device-name")}',
                 f'--rf.device_args={self.config.get("enb-rf-device-args")}',
             )
@@ -317,7 +331,7 @@ class SrsLteCharm(CharmBase):
 
     @property
     def _ue_attached(self) -> bool:
-        if netifaces.ifaddresses("tun_srsue")[AF_INET][0]["addr"]:
+        if get_iface_ip_address("tun_srsue"):
             return True
         return False
 
