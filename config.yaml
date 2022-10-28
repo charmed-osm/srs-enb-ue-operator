@@ -2,11 +2,10 @@
 # See LICENSE file for licensing details.
 
 options:
-  bind-address-subnet:
+  bind-address:
     type: string
     description: |
-      The selected bind address will need to be part of this subnet.
-      If this is not set, it will use the IP address from the default interface.
+      Local IP address to bind for GTP and S1AP connection.
     default: ""
   enb-name:
     type: string
@@ -14,15 +13,15 @@ options:
       eNodeB name.
     default: dummyENB01
   enb-mcc:
-    type: int
+    type: string
     description: |
       EnodeB Mobile Country Code (MCC).
-    default: 901
+    default: '001'
   enb-mnc:
-    type: int
+    type: string
     description: |
       EnodeB Mobile Network Code (MNC).
-    default: 70
+    default: '01'
   enb-rf-device-name:
     type: string
     description: |
