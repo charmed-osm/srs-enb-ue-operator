@@ -35,7 +35,7 @@ juju deploy charmed-osm-srs-enb-ue --config <yaml config file> --channel=edge
 For attaching the UE to the core network run:
 
 ```bash
-juju run-action <unit> attach-ue usim-imsi=<IMSI> usim-k=<K> usim-opc=<OPC> --wait
+juju run-action <unit> attach-ue --string-args usim-imsi=<IMSI> usim-k=<K> usim-opc=<OPC> --wait
 ```
 
 ### Detach UE
