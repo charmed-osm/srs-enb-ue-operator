@@ -10,19 +10,16 @@ import os
 import shutil
 from typing import Optional
 
-import netifaces  # type: ignore[import]
 from charms.lte_core_interface.v0.lte_core_interface import (
     LTECoreAvailableEvent,
     LTECoreRequires,
 )
 from jinja2 import Template
-from netifaces import AF_INET
 from ops.charm import (
     ActionEvent,
     CharmBase,
     ConfigChangedEvent,
     InstallEvent,
-    StartEvent,
     StopEvent,
     UpdateStatusEvent,
 )
@@ -107,7 +104,6 @@ class SrsLteCharm(CharmBase):
 
         # Basic hooks
         self.framework.observe(self.on.install, self._on_install)
-        self.framework.observe(self.on.start, self._on_start)
         self.framework.observe(self.on.stop, self._on_stop)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.update_status, self._on_update_status)
@@ -145,12 +141,6 @@ class SrsLteCharm(CharmBase):
 
         service_enable(SRS_ENB_SERVICE)
 
-    def _on_start(self, _: StartEvent) -> None:
-        """Triggered on start event."""
-        self.unit.status = MaintenanceStatus("Starting srsenb")
-        service_start(SRS_ENB_SERVICE)
-        self.unit.status = ActiveStatus("srsenb started.")
-
     def _on_stop(self, _: StopEvent) -> None:
         """Triggered on stop event."""
         self._reset_environment()
@@ -163,6 +153,9 @@ class SrsLteCharm(CharmBase):
         if service_active(SRS_ENB_SERVICE):
             self.unit.status = MaintenanceStatus("Reloading srsenb")
             service_restart(SRS_ENB_SERVICE)
+        else:
+            self.unit.status = MaintenanceStatus("Starting srsenb")
+            service_start(SRS_ENB_SERVICE)
         self.unit.status = ActiveStatus(self._active_status_msg)
 
     def _on_update_status(self, _: UpdateStatusEvent) -> None:
@@ -204,7 +197,7 @@ class SrsLteCharm(CharmBase):
             event.params["usim-opc"],
         )
         service_restart(SRS_UE_SERVICE)
-        
+
         if ue_ip := get_iface_ip_address("tun_srsue"):
             event.set_results({"message": "Attached successfully.", "ue-ipv4": ue_ip})
             self.unit.status = ActiveStatus(self._active_status_msg)

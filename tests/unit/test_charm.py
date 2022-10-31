@@ -263,24 +263,19 @@ class TestCharm(unittest.TestCase):
             self.harness.model.unit.status, MaintenanceStatus("Configuring srs env service")
         )
 
+    @patch("charm.service_active")
     @patch("subprocess.run")
-    def test_given_service_not_yet_started_when_on_start_then_srsenb_service_is_started(  # noqa: E501
-        self, patch_run
+    @patch("builtins.open", new_callable=mock_open)
+    def test_given_service_not_yet_started_when_on_config_changed_then_srsenb_service_is_started(  # noqa: E501
+        self, _, patch_run, patch_service_active,
     ):
-        self.harness.charm.on.start.emit()
+        patch_service_active.return_value = False
+        key_values = {}
+        self.harness.update_config(key_values=key_values)
 
         patch_run.assert_any_call(
             "systemctl start srsenb", shell=True, stdout=-1, encoding="utf-8"
         )
-
-    @patch("charm.service_active")
-    @patch("subprocess.run")
-    def test_given_service_started_when_on_start_then_srsenb_status_is_active(
-        self, _, patch_service_active
-    ):
-        self.harness.charm.on.start.emit()
-
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started."))
 
     @patch("shutil.rmtree")
     @patch("os.mkdir")
