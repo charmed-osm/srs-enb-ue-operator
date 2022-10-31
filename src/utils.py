@@ -146,7 +146,8 @@ def get_iface_ip_address(iface: str) -> Optional[str]:
     Returns:
         str: UE's IP address.
     """
-    if ue_ip := netifaces.ifaddresses(iface)[AF_INET][0]["addr"]:
-        return ue_ip
-    logging.error(f"Could not get IP address. {iface} is not a valid interface.")
-    return None
+    try:
+        return  netifaces.ifaddresses(iface)[AF_INET][0]["addr"]
+    except ValueError:
+        logging.error(f"Could not get IP address. {iface} is not a valid interface.")
+        return None
