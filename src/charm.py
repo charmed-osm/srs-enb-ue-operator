@@ -283,14 +283,13 @@ class SrsLteCharm(CharmBase):
     def _get_srsue_command(self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str) -> str:
         """Returns srs ue command."""
         srsue_command = [SRS_UE_BINARY]
-        if ue_usim_imsi:
-            srsue_command.extend(
-                (
-                    f"--usim.imsi={ue_usim_imsi}",
-                    f"--usim.k={ue_usim_k}",
-                    f"--usim.opc={ue_usim_opc}",
-                )
+        srsue_command.extend(
+            (
+                f"--usim.imsi={ue_usim_imsi}",
+                f"--usim.k={ue_usim_k}",
+                f"--usim.opc={ue_usim_opc}",
             )
+        )
         srsue_command.extend(
             (
                 f'--usim.algo={self.config.get("ue-usim-algo")}',
