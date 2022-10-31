@@ -7,6 +7,7 @@ import logging
 import shutil
 import subprocess
 from typing import Dict, List, Optional
+from subprocess import CalledProcessError
 
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
@@ -18,9 +19,11 @@ logger = logging.getLogger(__name__)
 
 def service_active(service_name: str) -> bool:
     """Returns whether a given service is active."""
-    response = shell(f"systemctl is-active {service_name}")
-    return response == "active\n"
-
+    try:
+        response = shell(f"systemctl is-active {service_name}")
+        return response == "active\n"
+    except CalledProcessError:
+        return False
 
 def install_apt_packages(package_list: List[str]) -> None:
     """Installs a given list of packages."""
