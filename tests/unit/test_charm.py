@@ -198,7 +198,7 @@ class TestCharm(unittest.TestCase):
             "Restart=always\n"
             "RestartSec=1\n"
             "User=root\n"
-            "ExecStart=/build/srsenb/src/srsenb --enb.gtp_bind_addr=10.0.0.8 --enb.s1c_bind_addr=10.0.0.8 --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n\n"  # noqa: E501, W505
+            "ExecStart=/build/srsenb/src/srsenb --enb.gtp_bind_addr=10.0.0.8 --enb.s1c_bind_addr=10.0.0.8 --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf /config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n\n"  # noqa: E501, W505
             "[Install]\n"
             "WantedBy=multi-user.target"
         )
@@ -361,16 +361,16 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus(""))
 
-    @patch("charm.SrsLteCharm._ue_attached")
+    @patch("charm.get_iface_ip_address")
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
     def test_given_any_config_and_started_is_true_when_on_config_changed_then_srsenb_service_is_restarted(  # noqa: E501
-        self, _, __, patch_subprocess_run, mock_ue_attached
+        self, _, __, patch_subprocess_run, patch_get_iface_ip_address
     ):
         key_values = {}
-        # TODO change when the other PR is merged
-        mock_ue_attached.return_value = False
+        dummy_ue_ipv4_address = "192.168.128.13"
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
 
         self.harness.update_config(key_values=key_values)
 
@@ -509,15 +509,15 @@ class TestCharm(unittest.TestCase):
             ActiveStatus("srsenb started. mme: 0.0.0.0. ue attached. "),
         )
 
-    @patch("charm.SrsLteCharm._ue_attached")
+    @patch("charm.get_iface_ip_address")
     @patch("utils.service_active")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_detach_ue_action_when_action_is_successful_then_status_is_active(  # noqa: E501
-        self, _, __, patch_service_active, mock_ue_attached
+        self, _, __, patch_service_active, patch_get_iface_ip_address
     ):
-        # TODO change when the other PR is merged
-        mock_ue_attached.return_value = False
+        dummy_ue_ipv4_address = "192.168.128.13"
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
         mock_event = Mock()
         mock_event.params = self.DETACH_ACTION_PARAMS
         patch_service_active.return_value = True
@@ -592,15 +592,15 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.charm.unit.status, old_status)
 
     # lte-core-interface
-    @patch("charm.SrsLteCharm._ue_attached")
+    @patch("charm.get_iface_ip_address")
     @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
     def test_given_lte_core_provider_charm_when_relation_is_created_then_mme_addr_is_updated_in_peer_relation_data(  # noqa: E501
-        self, patch_service_active, _, mock_ue_attached
+        self, patch_service_active, _, patch_get_iface_ip_address
     ):
-        # TODO change when the other PR is merged
-        mock_ue_attached.return_value = False
+        dummy_ue_ipv4_address = "192.168.128.13"
+        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
         mme_ipv4_address = "0.0.0.0"
         relation_data = {"mme_ipv4_address": mme_ipv4_address}
         relation_id = self.harness.add_relation(
