@@ -4,17 +4,17 @@ Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (S
 
 ## Usage
 
-Create a YAML configuration file with the necessary charm config:
+If you wish to change the default configuration, create a YAML configuration file with fields you would like to change:
 
 ```yaml
 ---
 srs-enb-ue:
-  bind-address-subnet: <ipv4 address>
-  enb-name: <enb name>
-  enb-mcc: <mcc>
-  enb-mnc: <mnc default>
-  enb-rf-device-name: <zmq>
-  enb-rf-device-args: <RF Device Name.>
+  bind-address: <Local IP address to bind for GTP and S1AP connection.>
+  enb-name: <eNodeB name.>
+  enb-mcc: <EnodeB Mobile Country Code (MCC).>
+  enb-mnc: <EnodeB Mobile Network Code (MNC).>
+  enb-rf-device-name: <RF Device Name.>
+  enb-rf-device-args: <RF Device Arguments.> 
   ue-usim-algo: <The authentication algorithm to use (MILENAGE or XOR).>
   ue-nas-apn: <NAS Access Point Name (APN).>
   ue-device-name: <UE Device Name.>
@@ -35,7 +35,7 @@ juju deploy charmed-osm-srs-enb-ue --config <yaml config file> --channel=edge
 For attaching the UE to the core network run:
 
 ```bash
-juju run-action <unit> attach-ue usim-imsi=<IMSI> usim-k=<K> usim-opc=<OPC> --wait
+juju run-action <unit> attach-ue --string-args usim-imsi=<IMSI> usim-k=<K> usim-opc=<OPC> --wait
 ```
 
 ### Detach UE

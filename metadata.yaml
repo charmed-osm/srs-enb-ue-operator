@@ -12,3 +12,7 @@ series:
 requires:
   lte-core:
     interface: lte-core
+
+peers:
+  replicas:
+    interface: srs-enb-ue-replica

@@ -6,6 +6,7 @@
 import logging
 import shutil
 import subprocess
+from subprocess import CalledProcessError
 from typing import Dict, List, Optional
 
 import netifaces  # type: ignore[import]
@@ -18,8 +19,11 @@ logger = logging.getLogger(__name__)
 
 def service_active(service_name: str) -> bool:
     """Returns whether a given service is active."""
-    response = shell(f"systemctl is-active {service_name}")
-    return response == "active\n"
+    try:
+        response = shell(f"systemctl is-active {service_name}")
+        return response == "active\n"
+    except CalledProcessError:
+        return False
 
 
 def install_apt_packages(package_list: List[str]) -> None:
@@ -146,7 +150,8 @@ def get_iface_ip_address(iface: str) -> Optional[str]:
     Returns:
         str: UE's IP address.
     """
-    if ue_ip := netifaces.ifaddresses(iface)[AF_INET][0]["addr"]:
-        return ue_ip
-    logging.error(f"Could not get IP address. {iface} is not a valid interface.")
-    return None
+    try:
+        return netifaces.ifaddresses(iface)[AF_INET][0]["addr"]
+    except ValueError:
+        logging.error(f"Could not get IP address. {iface} is not a valid interface.")
+        return None
