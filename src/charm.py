@@ -21,7 +21,6 @@ from ops.charm import (
     ConfigChangedEvent,
     InstallEvent,
     StopEvent,
-    UpdateStatusEvent,
 )
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
@@ -106,7 +105,6 @@ class SrsLteCharm(CharmBase):
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.stop, self._on_stop)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
-        self.framework.observe(self.on.update_status, self._on_update_status)
 
         # Actions hooks
         self.framework.observe(self.on.attach_ue_action, self._on_attach_ue_action)
@@ -156,11 +154,7 @@ class SrsLteCharm(CharmBase):
         else:
             self.unit.status = MaintenanceStatus("Starting srsenb")
             service_start(SRS_ENB_SERVICE)
-        self.unit.status = ActiveStatus(self._active_status_msg)
-
-    def _on_update_status(self, _: UpdateStatusEvent) -> None:
-        """Triggered on update status event."""
-        self.unit.status = ActiveStatus(self._active_status_msg)
+        self.unit.status = ActiveStatus("srsenb started")
 
     def _on_lte_core_available(self, event: LTECoreAvailableEvent) -> None:
         """Triggered on lte_core_available.
@@ -181,7 +175,9 @@ class SrsLteCharm(CharmBase):
             logging.info(
                 f"Restarting EnodeB after MME IP address change. MME address: {self._mme_addr}"
             )
-        self.unit.status = ActiveStatus(self._active_status_msg)
+        self.unit.status = ActiveStatus(
+            f"mme interface ipv4 address received mme: {self._mme_addr}."
+        )
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on attach_ue action."""
@@ -200,7 +196,7 @@ class SrsLteCharm(CharmBase):
 
         if ue_ip := get_iface_ip_address("tun_srsue"):
             event.set_results({"message": "Attached successfully.", "ue-ipv4": ue_ip})
-            self.unit.status = ActiveStatus(self._active_status_msg)
+            self.unit.status = ActiveStatus("ue attached")
         else:
             event.fail("Failed to attach. Make sure you have provided the right configuration.")
 
@@ -208,7 +204,7 @@ class SrsLteCharm(CharmBase):
         """Triggered on detach_ue action."""
         service_stop(SRS_UE_SERVICE)
         self._configure_srsue_service(None, None, None)  # type: ignore[arg-type]
-        self.unit.status = ActiveStatus(self._active_status_msg)
+        self.unit.status = ActiveStatus("ue detached")
         event.set_results({"status": "ok", "message": "Detached successfully"})
 
     def _on_remove_default_gw_action(self, event: ActionEvent) -> None:
@@ -308,18 +304,6 @@ class SrsLteCharm(CharmBase):
         os.mkdir(BUILD_PATH)
         os.mkdir(CONFIG_PATH)
         os.mkdir(SERVICE_PATH)
-
-    @property
-    def _active_status_msg(self) -> str:
-        """Returns msg of current status."""
-        status_msg = ""
-        if service_active(SRS_ENB_SERVICE):
-            status_msg = "srsenb started. "
-            if mme_addr := self._mme_addr:
-                status_msg += f"mme: {mme_addr}. "
-            if self._ue_attached and service_active(SRS_UE_SERVICE):
-                status_msg += "ue attached. "
-        return status_msg
 
     @property
     def _ue_attached(self) -> bool:

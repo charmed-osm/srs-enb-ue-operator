@@ -206,14 +206,18 @@ class TestCharm(unittest.TestCase):
         )
         self.assertEqual(mock_open_write_srsenb_service.written_data, srsenb_expected_service)
 
-    @patch("charm.get_iface_ip_address")
-    @patch("charm.service_active", side_effect=[True, False, True, True])
+    @patch("charm.service_active", side_effect=[True, False])
     @patch("os.mkdir")
     @patch("shutil.copy")
     @patch("shutil.rmtree")
     @patch("subprocess.run")
     def test_given_service_template_when_attach_ue_action_emitted_then_srsue_service_file_is_rendered(  # noqa: E501
-        self, _, __, ___, ____, _____, patch_get_iface_ip_address
+        self,
+        _,
+        __,
+        ___,
+        ____,
+        _____,
     ):
         with open("templates/srsue.service", "r") as f:
             srsue_service_content = f.read()
@@ -226,8 +230,6 @@ class TestCharm(unittest.TestCase):
                 mock_open_write_srsue_service,
             ]
             event = Mock()
-            dummy_ue_ipv4_address = "192.168.128.13"
-            patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
             event.params = self.ATTACH_ACTION_PARAMS
             self.harness.charm._on_attach_ue_action(event)
 
@@ -348,7 +350,7 @@ class TestCharm(unittest.TestCase):
 
         self.harness.update_config(key_values=key_values)
 
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started"))
 
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
@@ -359,18 +361,15 @@ class TestCharm(unittest.TestCase):
 
         self.harness.update_config(key_values=key_values)
 
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus(""))
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started"))
 
-    @patch("charm.get_iface_ip_address")
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
     def test_given_any_config_and_started_is_true_when_on_config_changed_then_srsenb_service_is_restarted(  # noqa: E501
-        self, _, __, patch_subprocess_run, patch_get_iface_ip_address
+        self, _, __, patch_subprocess_run
     ):
         key_values = {}
-        dummy_ue_ipv4_address = "192.168.128.13"
-        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
 
         self.harness.update_config(key_values=key_values)
 
@@ -390,7 +389,7 @@ class TestCharm(unittest.TestCase):
 
         patch_service_restart.assert_not_called()
 
-    @patch("charm.service_active", side_effect=[True, False, True, True])
+    @patch("charm.service_active", side_effect=[True, False])
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
@@ -459,7 +458,7 @@ class TestCharm(unittest.TestCase):
             call("Failed to attach. UE already running, please detach first."),
         )
 
-    @patch("charm.service_active", side_effect=[True, False, True, True])
+    @patch("charm.service_active", side_effect=[True, False])
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
@@ -485,7 +484,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("subprocess.run")
     @patch("charm.get_iface_ip_address")
-    @patch("charm.service_active", side_effect=[True, False, True, True])
+    @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
     def test_given_imsi_k_ops_and_mme_when_attached_ue_action_then_status_is_active(
         self, _, __, patch_get_iface_ip_address, patch_subprocess_run
@@ -506,25 +505,23 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(
             self.harness.charm.unit.status,
-            ActiveStatus("srsenb started. mme: 0.0.0.0. ue attached. "),
+            ActiveStatus("ue attached"),
         )
 
-    @patch("charm.get_iface_ip_address")
     @patch("utils.service_active")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_detach_ue_action_when_action_is_successful_then_status_is_active(  # noqa: E501
-        self, _, __, patch_service_active, patch_get_iface_ip_address
+        self, _, __, patch_service_active
     ):
-        dummy_ue_ipv4_address = "192.168.128.13"
-        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
+
         mock_event = Mock()
         mock_event.params = self.DETACH_ACTION_PARAMS
         patch_service_active.return_value = True
 
         self.harness.charm._on_detach_ue_action(mock_event)
 
-        self.assertEqual(self.harness.charm.unit.status, ActiveStatus())
+        self.assertEqual(self.harness.charm.unit.status, ActiveStatus("ue detached"))
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
@@ -592,15 +589,14 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.charm.unit.status, old_status)
 
     # lte-core-interface
-    @patch("charm.get_iface_ip_address")
     @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     @patch("charm.service_active")
     def test_given_lte_core_provider_charm_when_relation_is_created_then_mme_addr_is_updated_in_peer_relation_data(  # noqa: E501
-        self, patch_service_active, _, patch_get_iface_ip_address
+        self,
+        patch_service_active,
+        _,
     ):
-        dummy_ue_ipv4_address = "192.168.128.13"
-        patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
         mme_ipv4_address = "0.0.0.0"
         relation_data = {"mme_ipv4_address": mme_ipv4_address}
         relation_id = self.harness.add_relation(
