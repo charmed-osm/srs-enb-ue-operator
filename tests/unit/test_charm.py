@@ -168,13 +168,15 @@ class TestCharm(unittest.TestCase):
         ]
         patch_copy.assert_has_calls(calls=calls)
 
+    @patch("charm.ip_from_default_iface")
     @patch("os.mkdir")
     @patch("shutil.copy")
     @patch("shutil.rmtree")
     @patch("subprocess.run")
     def test_given_service_template_when_install_then_srsenb_service_file_is_rendered(
-        self, _, __, ___, ____
+        self, _, __, ___, ____, patch_get_iface_ip_address
     ):
+        patch_get_iface_ip_address.return_value = "10.0.0.8"
 
         with open("templates/srsenb.service", "r") as f:
             srsenb_service_content = f.read()
@@ -267,7 +269,10 @@ class TestCharm(unittest.TestCase):
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
     def test_given_service_not_yet_started_when_on_config_changed_then_srsenb_service_is_started(  # noqa: E501
-        self, _, patch_run, patch_service_active,
+        self,
+        _,
+        patch_run,
+        patch_service_active,
     ):
         patch_service_active.return_value = False
         key_values = {}

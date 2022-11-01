@@ -6,8 +6,8 @@
 import logging
 import shutil
 import subprocess
-from typing import Dict, List, Optional
 from subprocess import CalledProcessError
+from typing import Dict, List, Optional
 
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
@@ -24,6 +24,7 @@ def service_active(service_name: str) -> bool:
         return response == "active\n"
     except CalledProcessError:
         return False
+
 
 def install_apt_packages(package_list: List[str]) -> None:
     """Installs a given list of packages."""
@@ -150,7 +151,7 @@ def get_iface_ip_address(iface: str) -> Optional[str]:
         str: UE's IP address.
     """
     try:
-        return  netifaces.ifaddresses(iface)[AF_INET][0]["addr"]
+        return netifaces.ifaddresses(iface)[AF_INET][0]["addr"]
     except ValueError:
         logging.error(f"Could not get IP address. {iface} is not a valid interface.")
         return None
