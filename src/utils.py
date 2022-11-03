@@ -171,5 +171,5 @@ def wait_for_condition(condition: Callable, timeout: int) -> bool:
     while time.time() - start < timeout:
         if condition():
             return True
-        time.sleep(0.1)
+        time.sleep(0.5)
     return False
