@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import shutil
-import subprocess
 from typing import Optional
 
 from charms.lte_core_interface.v0.lte_core_interface import (
@@ -197,13 +196,17 @@ class SrsLteCharm(CharmBase):
             event.params["usim-opc"],
         )
         service_restart(SRS_UE_SERVICE)
-        if not wait_for_condition(lambda: get_iface_ip_address("tun_srsue"), timeout=WAIT_FOR_UE_IP_TIMEOUT):
-            event.fail("Failed to attach UE. Please, check if you have provided the right parameters.")  # noqa: E501
+        if not wait_for_condition(
+            lambda: get_iface_ip_address("tun_srsue"), timeout=WAIT_FOR_UE_IP_TIMEOUT
+        ):
+            event.fail(
+                "Failed to attach UE. Please, check if you have provided the right parameters."
+            )
             return
         event.set_results(
             {
                 "status": "UE attached successfully.",
-                "ue-ipv4-address": get_iface_ip_address("tun_srsue")
+                "ue-ipv4-address": get_iface_ip_address("tun_srsue"),
             }
         )
         self.unit.status = ActiveStatus("ue attached.")

@@ -411,7 +411,7 @@ class TestCharm(unittest.TestCase):
             call(
                 {
                     "status": "UE attached successfully.",
-                    "ue-ipv4-address": dummy_tun_srsue_ipv4_address
+                    "ue-ipv4-address": dummy_tun_srsue_ipv4_address,
                 }
             ),
         )
@@ -455,7 +455,7 @@ class TestCharm(unittest.TestCase):
             call(
                 {
                     "status": "UE attached successfully.",
-                    "ue-ipv4-address": dummy_tun_srsue_ipv4_address
+                    "ue-ipv4-address": dummy_tun_srsue_ipv4_address,
                 }
             ),
         )
@@ -490,7 +490,7 @@ class TestCharm(unittest.TestCase):
     @patch("charm.get_iface_ip_address")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
-    def test_given_attach_ue_action_when_tun_srsue_ip_is_not_available_after_timeout_then_action_fails(
+    def test_given_attach_ue_action_when_tun_srsue_ip_is_not_available_after_timeout_then_action_fails(  # noqa: E501
         self, _, __, patch_get_iface_ip_address, patch_subprocess_run
     ):
         mock_event = Mock()
@@ -499,7 +499,7 @@ class TestCharm(unittest.TestCase):
         patch_get_iface_ip_address.return_value = dummy_tun_srsue_ipv4_address
 
         self.harness.charm._on_attach_ue_action(mock_event)
-        
+
         self.assertEqual(
             mock_event.fail.call_args,
             call("Failed to attach UE. Please, check if you have provided the right parameters."),
@@ -607,4 +607,3 @@ class TestCharm(unittest.TestCase):
         )
 
         self.assertEqual(self.harness.charm._mme_addr, mme_ipv4_address)
-

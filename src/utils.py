@@ -6,9 +6,9 @@
 import logging
 import shutil
 import subprocess
-from subprocess import CalledProcessError
 import time
-from typing import Dict, List, Optional
+from subprocess import CalledProcessError
+from typing import Callable, Dict, List, Optional
 
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
@@ -156,13 +156,14 @@ def get_iface_ip_address(iface: str) -> Optional[str]:
     except ValueError:
         logging.error(f"Could not get IP address. {iface} is not a valid interface.")
         return None
-    
 
-def wait_for_condition(condition: callable, timeout: int) -> bool:
+
+def wait_for_condition(condition: Callable, timeout: int) -> bool:
     """Wait for given condition to be met.
-    
+
     Args:
         condition: A function that returns a boolean.
+
     Returns:
         bool: Whether condition is met.
     """
