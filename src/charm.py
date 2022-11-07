@@ -38,6 +38,7 @@ from utils import (
     service_stop,
     shell,
     systemctl_daemon_reload,
+    wait_for_condition,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,8 @@ SRS_UE_SERVICE_TEMPLATE = "./templates/srsue.service"
 SRS_UE_SERVICE_PATH = "/etc/systemd/system/srsue.service"
 
 SRS_ENB_UE_BUILD_COMMAND = f"cd {BUILD_PATH} && cmake {SRC_PATH} && make -j `nproc` srsenb srsue"
+
+WAIT_FOR_UE_IP_TIMEOUT = 10
 
 
 class SrsLteCharm(CharmBase):
@@ -193,12 +196,20 @@ class SrsLteCharm(CharmBase):
             event.params["usim-opc"],
         )
         service_restart(SRS_UE_SERVICE)
-
-        if ue_ip := get_iface_ip_address("tun_srsue"):
-            event.set_results({"message": "Attached successfully.", "ue-ipv4": ue_ip})
-            self.unit.status = ActiveStatus("ue attached")
-        else:
-            event.fail("Failed to attach. Make sure you have provided the right configuration.")
+        if not wait_for_condition(
+            lambda: get_iface_ip_address("tun_srsue"), timeout=WAIT_FOR_UE_IP_TIMEOUT
+        ):
+            event.fail(
+                "Failed to attach UE. Please, check if you have provided the right parameters."
+            )
+            return
+        event.set_results(
+            {
+                "status": "UE attached successfully.",
+                "ue-ipv4-address": get_iface_ip_address("tun_srsue"),
+            }
+        )
+        self.unit.status = ActiveStatus("ue attached.")
 
     def _on_detach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on detach_ue action."""
@@ -307,9 +318,7 @@ class SrsLteCharm(CharmBase):
 
     @property
     def _ue_attached(self) -> bool:
-        if get_iface_ip_address("tun_srsue"):
-            return True
-        return False
+        return bool(get_iface_ip_address("tun_srsue"))
 
     @property
     def _mme_addr(self) -> Optional[str]:
