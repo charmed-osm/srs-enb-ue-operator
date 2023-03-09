@@ -189,6 +189,7 @@ class TestCharm(unittest.TestCase):
         ]
         patch_copy.assert_has_calls(calls=calls)
 
+    @patch("charm.ip_from_default_iface")
     @patch("charm.wait_for_condition")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("subprocess.run")
@@ -197,7 +198,10 @@ class TestCharm(unittest.TestCase):
         _,
         __,
         ___,
+        patch_ip_from_default_iface,
     ):
+        bind_address = "1.1.1.1"
+        patch_ip_from_default_iface.return_value = bind_address
         self.harness.set_leader(True)
 
         with open("templates/srsue.service", "r") as f:
@@ -221,7 +225,7 @@ class TestCharm(unittest.TestCase):
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
-            "ExecStart=/build/srsenb/src/srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr=192.168.33.165 --enb.s1c_bind_addr=192.168.33.165 --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf /config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n"  # noqa: E501, W505
+            f"ExecStart=/build/srsenb/src/srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf /config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n"  # noqa: E501, W505
             "User=root\n"
             "KillSignal=SIGINT\n"
             "TimeoutStopSec=10\n"
