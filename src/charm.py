@@ -4,11 +4,10 @@
 
 """Charm for the SRS RAN simulator."""
 
-import json
 import logging
 import os
 import shutil
-from typing import Optional
+from typing import Optional, Union
 
 from charms.lte_core_interface.v0.lte_core_interface import (
     LTECoreAvailableEvent,
@@ -23,7 +22,7 @@ from ops.charm import (
     StopEvent,
 )
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 
 from utils import (
     copy_files,
@@ -34,7 +33,6 @@ from utils import (
     service_active,
     service_enable,
     service_restart,
-    service_start,
     service_stop,
     shell,
     systemctl_daemon_reload,
@@ -117,73 +115,54 @@ class SrsLteCharm(CharmBase):
         self.lte_core_requirer = LTECoreRequires(self, "lte-core")
         self.framework.observe(
             self.lte_core_requirer.on.lte_core_available,
-            self._on_lte_core_available,
+            self._on_config_changed,
         )
 
     def _on_install(self, _: InstallEvent) -> None:
         """Triggered on install event."""
-        self.unit.status = MaintenanceStatus("Installing apt packages")
+        if not self.unit.is_leader():
+            return
+        self.unit.status = MaintenanceStatus("Installing srsRAN")
         install_apt_packages(APT_REQUIREMENTS)
-
-        self.unit.status = MaintenanceStatus("Preparing the environment")
         self._reset_environment()
-
-        self.unit.status = MaintenanceStatus("Downloading srsLTE from Github")
-        git_clone(GIT_REPO, output_folder=SRC_PATH, branch=GIT_REPO_TAG, depth=1)
-
-        self.unit.status = MaintenanceStatus("Building srsLTE")
-        shell(SRS_ENB_UE_BUILD_COMMAND)
-
-        self.unit.status = MaintenanceStatus("Copying example configuration files")
+        self._build_srsran()
         copy_files(origin=CONFIG_ORIGIN_PATHS, destination=CONFIG_PATHS)
-
-        self.unit.status = MaintenanceStatus("Configuring srs env service")
-        self._configure_srsenb_service()
-
-        service_enable(SRS_ENB_SERVICE)
 
     def _on_stop(self, _: StopEvent) -> None:
         """Triggered on stop event."""
+        if not self.unit.is_leader():
+            return
         self._reset_environment()
         service_stop(SRS_ENB_SERVICE)
         self.unit.status = BlockedStatus("Unit is down, service has stopped")
 
-    def _on_config_changed(self, _: ConfigChangedEvent) -> None:
+    def _on_config_changed(self, _: Union[ConfigChangedEvent, LTECoreAvailableEvent]) -> None:
         """Triggered on config changed event."""
-        self._configure_srsenb_service()
-        if service_active(SRS_ENB_SERVICE):
-            self.unit.status = MaintenanceStatus("Reloading srsenb")
-            service_restart(SRS_ENB_SERVICE)
-        else:
-            self.unit.status = MaintenanceStatus("Starting srsenb")
-            service_start(SRS_ENB_SERVICE)
-        self.unit.status = ActiveStatus("srsenb started")
-
-    def _on_lte_core_available(self, event: LTECoreAvailableEvent) -> None:
-        """Triggered on lte_core_available.
-
-        Retrieves MME address from relation, configures the srs enb service and restarts it.
-        """
         if not self.unit.is_leader():
             return
-        if not self.model.get_relation("replicas"):
-            event.fail("Peer relation not created yet")  # type: ignore[attr-defined]
+        if not self._lte_core_relation_is_created:
+            self.unit.status = BlockedStatus("Waiting for LTE Core relation to be created")
             return
-        self.model.get_relation("replicas").data[self.app]["mme_ipv4_address"] = json.dumps(event.mme_ipv4_address)  # type: ignore[union-attr]  # noqa: E501
-        logging.info(f"MME IPv4 address from LTE core: {event.mme_ipv4_address}")
+        if not self._lte_core_mme_address_is_available:
+            self.unit.status = WaitingStatus("Waiting for MME address to be available")
+            return
+        self.unit.status = MaintenanceStatus("Configuring srsenb")
         self._configure_srsenb_service()
-        if service_active(SRS_ENB_SERVICE):
-            self.unit.status = MaintenanceStatus("Reloading srsenb.")
-            service_restart(SRS_ENB_SERVICE)
-            logging.info(
-                f"Restarting EnodeB after MME IP address change. MME address: {self._mme_addr}"
-            )
-        self.unit.status = ActiveStatus(
-            f"mme interface ipv4 address received mme: {self._mme_addr}."
-        )
+        service_enable(SRS_ENB_SERVICE)
+        service_restart(SRS_ENB_SERVICE)
+        self.unit.status = ActiveStatus("srsenb started")
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on attach_ue action."""
+        if not self.unit.is_leader():
+            event.fail("Only leader can attach UE")
+            return
+        if not self._lte_core_relation_is_created:
+            event.fail("LTE Core relation is not created")
+            return
+        if not self._lte_core_mme_address_is_available:
+            event.fail("MME address is not available")
+            return
         if not service_active(SRS_ENB_SERVICE):
             event.fail("Failed to attach. The EnodeB is not running.")
             return
@@ -191,9 +170,9 @@ class SrsLteCharm(CharmBase):
             event.fail("Failed to attach. UE already running, please detach first.")
             return
         self._configure_srsue_service(
-            event.params["usim-imsi"],
-            event.params["usim-k"],
-            event.params["usim-opc"],
+            ue_usim_imsi=event.params["usim-imsi"],
+            ue_usim_k=event.params["usim-k"],
+            ue_usim_opc=event.params["usim-opc"],
         )
         service_restart(SRS_UE_SERVICE)
         if not wait_for_condition(
@@ -231,6 +210,12 @@ class SrsLteCharm(CharmBase):
             service_path=SRS_ENB_SERVICE_PATH,
         )
 
+    @staticmethod
+    def _build_srsran() -> None:
+        """Build srsRAN."""
+        git_clone(GIT_REPO, output_folder=SRC_PATH, branch=GIT_REPO_TAG, depth=1)
+        shell(SRS_ENB_UE_BUILD_COMMAND)
+
     def _configure_srsue_service(
         self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str
     ) -> None:
@@ -241,6 +226,24 @@ class SrsLteCharm(CharmBase):
             service_path=SRS_UE_SERVICE_PATH,
         )
 
+    @property
+    def _lte_core_relation_is_created(self) -> bool:
+        """Checks if the relation with the LTE core is created."""
+        return self._relation_is_created("lte-core")
+
+    def _relation_is_created(self, relation_name: str) -> bool:
+        """Checks if the relation with the given name is created."""
+        try:
+            if self.model.get_relation(relation_name):
+                return True
+            return False
+        except KeyError:
+            return False
+
+    def _lte_core_mme_address_is_available(self) -> bool:
+        """Checks if the MME address is available."""
+        return self._mme_address is not None
+
     @staticmethod
     def _configure_service(
         command: str,
@@ -250,17 +253,16 @@ class SrsLteCharm(CharmBase):
         """Renders service template and reload daemon service."""
         with open(service_template, "r") as template:
             service_content = Template(template.read()).render(command=command)
-            with open(service_path, "w") as service:
-                service.write(service_content)
-            systemctl_daemon_reload()
+        with open(service_path, "w") as service:
+            service.write(service_content)
+        systemctl_daemon_reload()
 
     def _get_srsenb_command(self) -> str:
         """Returns srs enb command."""
         srsenb_command = [SRS_ENB_BINARY]
-        if self._mme_addr:
-            srsenb_command.append(f"--enb.mme_addr={self._mme_addr}")
         srsenb_command.extend(
             (
+                f"--enb.mme_addr={self._mme_address}",
                 f"--enb.gtp_bind_addr={self._bind_address}",
                 f"--enb.s1c_bind_addr={self._bind_address}",
             )
@@ -317,20 +319,18 @@ class SrsLteCharm(CharmBase):
         os.mkdir(SERVICE_PATH)
 
     @property
-    def _ue_attached(self) -> bool:
-        return bool(get_iface_ip_address("tun_srsue"))
-
-    @property
-    def _mme_addr(self) -> Optional[str]:
+    def _mme_address(self) -> Optional[str]:
         """Returns the ipv4 address of the mme interface.
 
         Returns:
-            str: mme_addr
+            str: MME Address
         """
-        if not self.model.get_relation("replicas"):
+        if not self.unit.is_leader():
             return None
-        data = self.model.get_relation("replicas").data[self.app].get("mme_ipv4_address", "")  # type: ignore[union-attr]  # noqa: E501
-        return json.loads(data) if data else None
+        mme_relation = self.model.get_relation(relation_name="lte-core")
+        if not mme_relation:
+            return None
+        return mme_relation.data[mme_relation.app].get("mme_ipv4_address")
 
     @property
     def _bind_address(self) -> Optional[str]:

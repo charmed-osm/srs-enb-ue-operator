@@ -88,28 +88,22 @@ def _systemctl(action: str, service_name: str) -> None:
     shell(f"systemctl {action} {service_name}")
 
 
-def service_start(service_name: str) -> None:
-    """Starts a given service."""
-    _systemctl("start", service_name)
-    logger.info("Service %s started", (service_name))
-
-
 def service_restart(service_name: str) -> None:
     """Restarts a given service."""
     _systemctl("restart", service_name)
-    logger.info("Service %s restarted", (service_name))
+    logger.info("Service %s restarted", service_name)
 
 
 def service_stop(service_name: str) -> None:
     """Stops a given service."""
     _systemctl("stop", service_name)
-    logger.info("Service %s stopped", (service_name))
+    logger.info("Service %s stopped", service_name)
 
 
 def service_enable(service_name: str) -> None:
     """Enables a given service."""
     _systemctl("enable", service_name)
-    logger.info("Service %s enabled", (service_name))
+    logger.info("Service %s enabled", service_name)
 
 
 def systemctl_daemon_reload() -> None:
@@ -163,6 +157,7 @@ def wait_for_condition(condition: Callable, timeout: int) -> bool:
 
     Args:
         condition: A function that returns a boolean.
+        timeout: Timeout in seconds.
 
     Returns:
         bool: Whether condition is met.
