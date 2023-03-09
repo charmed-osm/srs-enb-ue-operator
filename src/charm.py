@@ -240,6 +240,7 @@ class SrsLteCharm(CharmBase):
         except KeyError:
             return False
 
+    @property
     def _lte_core_mme_address_is_available(self) -> bool:
         """Checks if the MME address is available."""
         return self._mme_address is not None
@@ -329,6 +330,8 @@ class SrsLteCharm(CharmBase):
             return None
         mme_relation = self.model.get_relation(relation_name="lte-core")
         if not mme_relation:
+            return None
+        if not mme_relation.app:
             return None
         return mme_relation.data[mme_relation.app].get("mme_ipv4_address")
 

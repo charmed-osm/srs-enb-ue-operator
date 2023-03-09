@@ -47,6 +47,7 @@ class TestCharm(unittest.TestCase):
     def setUp(self) -> None:
         self.harness = testing.Harness(SrsLteCharm)
         self.addCleanup(self.harness.cleanup)
+        self.maxDiff = None
         self.harness.begin()
 
     def create_lte_core_relation(self) -> int:
