@@ -7,7 +7,7 @@ from unittest.mock import Mock, call, mock_open, patch
 from ops import testing
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
-from charm import SrsLteCharm
+from charm import SrsRANCharm
 
 testing.SIMULATE_CAN_CONNECT = True
 
@@ -45,7 +45,7 @@ class TestCharm(unittest.TestCase):
     DETACH_ACTION_PARAMS = {"usim-imsi": None, "usim-opc": None, "usim-k": None}
 
     def setUp(self) -> None:
-        self.harness = testing.Harness(SrsLteCharm)
+        self.harness = testing.Harness(SrsRANCharm)
         self.addCleanup(self.harness.cleanup)
         self.maxDiff = None
         self.harness.begin()
@@ -134,33 +134,13 @@ class TestCharm(unittest.TestCase):
         patch_rmtree.assert_has_calls(calls=rmtree_calls)
         patch_mkdir.assert_has_calls(calls=mkdir_calls)
 
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir", new=Mock())
-    @patch("shutil.copy", new=Mock())
-    @patch("shutil.rmtree", new=Mock())
-    @patch("subprocess.run")
-    def test_given_unit_is_leader_when_install_then_srsran_repo_is_cloned(
-        self,
-        patch_subprocess_run,
-        _,
-    ):
-        self.harness.set_leader(True)
-
-        self.harness.charm.on.install.emit()
-
-        patch_subprocess_run.assert_any_call(
-            "git clone --branch=release_20_10 --depth=1 https://github.com/srsLTE/srsLTE.git /srsLTE",  # noqa: E501
-            shell=True,
-            stdout=-1,
-            encoding="utf-8",
-        )
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.mkdir", new=Mock())
     @patch("shutil.copy", new=Mock())
     @patch("shutil.rmtree", new=Mock())
     @patch("subprocess.run")
-    def test_given_unit_is_leader_when_install_then_srsran_is_built(
+    def test_given_unit_is_leader_when_install_then_srsran_is_installed(
         self,
         patch_subprocess_run,
         _,
@@ -174,7 +154,7 @@ class TestCharm(unittest.TestCase):
             shell=True,
             stdout=-1,
             encoding="utf-8",
-        )
+        )  # TODO Change test to validate install
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.mkdir", new=Mock())
