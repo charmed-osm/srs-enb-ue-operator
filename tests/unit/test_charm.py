@@ -1,7 +1,6 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import json
 import unittest
 from unittest.mock import Mock, call, mock_open, patch
 
@@ -46,23 +45,38 @@ class TestCharm(unittest.TestCase):
     DETACH_ACTION_PARAMS = {"usim-imsi": None, "usim-opc": None, "usim-k": None}
 
     def setUp(self) -> None:
-        self.remote_app_name = "magma-access-gateway-operator"
-        self.relation_name = "lte-core"
         self.harness = testing.Harness(SrsLteCharm)
         self.addCleanup(self.harness.cleanup)
+        self.maxDiff = None
         self.harness.begin()
-        self.peer_relation_id = self.harness.add_relation("replicas", self.harness.charm.app.name)
-        self.harness.add_relation_unit(self.peer_relation_id, self.harness.charm.unit.name)
-        self.harness.set_leader(True)
+
+    def create_lte_core_relation(self) -> int:
+        relation_name = "lte-core"
+        remote_app_name = "magma-access-gateway-operator"
+        mme_ipv4_address = "1.2.3.4"
+        relation_data = {"mme_ipv4_address": mme_ipv4_address}
+        relation_id = self.harness.add_relation(
+            relation_name=relation_name, remote_app=remote_app_name
+        )
+        self.harness.update_relation_data(
+            relation_id=relation_id,
+            app_or_unit=remote_app_name,
+            key_values=relation_data,
+        )
+        return relation_id
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir")
-    @patch("shutil.copy")
-    @patch("shutil.rmtree")
+    @patch("os.mkdir", new=Mock())
+    @patch("shutil.copy", new=Mock())
+    @patch("shutil.rmtree", new=Mock())
     @patch("subprocess.run")
-    def test_given_list_of_packages_to_install_when_install_then_apt_cache_is_updated(
-        self, patch_subprocess_run, _, __, ___, ____
+    def test_given_unit_is_leader_when_install_then_apt_cache_is_updated(
+        self,
+        patch_subprocess_run,
+        _,
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
@@ -70,13 +84,17 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir")
-    @patch("shutil.copy")
-    @patch("shutil.rmtree")
+    @patch("os.mkdir", new=Mock())
+    @patch("shutil.copy", new=Mock())
+    @patch("shutil.rmtree", new=Mock())
     @patch("subprocess.run")
-    def test_given_list_of_packages_to_install_when_install_then_apt_packages_are_installed(
-        self, patch_subprocess_run, _, __, ___, ____
+    def test_given_unit_is_leader_when_install_then_apt_packages_are_installed(
+        self,
+        patch_subprocess_run,
+        _,
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
@@ -88,12 +106,13 @@ class TestCharm(unittest.TestCase):
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.mkdir")
-    @patch("shutil.copy")
+    @patch("shutil.copy", new=Mock())
     @patch("shutil.rmtree")
-    @patch("subprocess.run")
-    def test_given_install_event_when_install_then_srs_directories_are_removed_and_recreated(
-        self, _, patch_rmtree, __, patch_mkdir, ___
+    @patch("subprocess.run", new=Mock())
+    def test_given_unit_is_leader_when_install_then_srs_directories_are_removed_and_recreated(
+        self, patch_rmtree, patch_mkdir, _
     ):
+        self.harness.set_leader(True)
         build_path = "/build"
         config_path = "/config"
         service_path = "/service"
@@ -116,13 +135,17 @@ class TestCharm(unittest.TestCase):
         patch_mkdir.assert_has_calls(calls=mkdir_calls)
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir")
-    @patch("shutil.copy")
-    @patch("shutil.rmtree")
+    @patch("os.mkdir", new=Mock())
+    @patch("shutil.copy", new=Mock())
+    @patch("shutil.rmtree", new=Mock())
     @patch("subprocess.run")
-    def test_given_install_event_when_install_then_srsran_repo_is_cloned(
-        self, patch_subprocess_run, _, __, ___, ____
+    def test_given_unit_is_leader_when_install_then_srsran_repo_is_cloned(
+        self,
+        patch_subprocess_run,
+        _,
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
@@ -133,13 +156,17 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir")
-    @patch("shutil.copy")
-    @patch("shutil.rmtree")
+    @patch("os.mkdir", new=Mock())
+    @patch("shutil.copy", new=Mock())
+    @patch("shutil.rmtree", new=Mock())
     @patch("subprocess.run")
-    def test_given_install_event_when_install_then_srsran_is_built(
-        self, patch_subprocess_run, _, __, ___, ____
+    def test_given_unit_is_leader_when_install_then_srsran_is_built(
+        self,
+        patch_subprocess_run,
+        _,
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.install.emit()
 
         patch_subprocess_run.assert_any_call(
@@ -150,13 +177,17 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir")
+    @patch("os.mkdir", new=Mock())
     @patch("shutil.copy")
-    @patch("shutil.rmtree")
-    @patch("subprocess.run")
-    def test_given_install_event_when_install_then_files_are_copied(
-        self, _, __, patch_copy, ___, ____
+    @patch("shutil.rmtree", new=Mock())
+    @patch("subprocess.run", new=Mock())
+    def test_given_unit_is_leader_when_install_then_files_are_copied(
+        self,
+        patch_copy,
+        _,
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.install.emit()
 
         calls = [
@@ -169,69 +200,76 @@ class TestCharm(unittest.TestCase):
         patch_copy.assert_has_calls(calls=calls)
 
     @patch("charm.ip_from_default_iface")
-    @patch("os.mkdir")
-    @patch("shutil.copy")
-    @patch("shutil.rmtree")
-    @patch("subprocess.run")
-    def test_given_service_template_when_install_then_srsenb_service_file_is_rendered(
-        self, _, __, ___, ____, patch_get_iface_ip_address
+    @patch("charm.wait_for_condition", new=Mock())
+    @patch("charm.service_active", side_effect=[True, False])
+    @patch("subprocess.run", new=Mock())
+    def test_given_lte_core_relation_when_mme_address_is_available_then_srsenb_service_file_is_rendered(  # noqa: E501
+        self,
+        _,
+        patch_ip_from_default_iface,
     ):
-        patch_get_iface_ip_address.return_value = "10.0.0.8"
+        bind_address = "1.1.1.1"
+        patch_ip_from_default_iface.return_value = bind_address
+        self.harness.set_leader(True)
 
-        with open("templates/srsenb.service", "r") as f:
-            srsenb_service_content = f.read()
+        with open("templates/srsue.service", "r") as f:
+            srsue_service_content = f.read()
 
-        with patch("builtins.open") as mock_open:
-            mock_open_read_srsenb_template = MockOpen(read_data=srsenb_service_content)
-            mock_open_write_srsenb_service = MockOpen()
-            mock_open.side_effect = [
-                mock_open_read_srsenb_template,
-                mock_open_write_srsenb_service,
+        with patch("builtins.open") as patch_open:
+            mock_open_read_srsue_template = MockOpen(read_data=srsue_service_content)
+            mock_open_write_srsue_service = MockOpen()
+            patch_open.side_effect = [
+                mock_open_read_srsue_template,
+                mock_open_write_srsue_service,
             ]
-            self.harness.charm.on.install.emit()
+            self.create_lte_core_relation()
 
-        srsenb_expected_service = (
+        srsue_expected_service = (
             "[Unit]\n"
-            "Description=Srs EnodeB Service\n"
+            "Description=Srs User Emulator Service\n"
             "After=network.target\n"
             "StartLimitIntervalSec=0\n"
             "[Service]\n"
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
+            f"ExecStart=/build/srsenb/src/srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf /config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n"  # noqa: E501, W505
             "User=root\n"
-            "ExecStart=/build/srsenb/src/srsenb --enb.gtp_bind_addr=10.0.0.8 --enb.s1c_bind_addr=10.0.0.8 --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/config/rr.conf --enb_files.sib_config=/config/sib.conf --enb_files.drb_config=/config/drb.conf /config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n\n"  # noqa: E501, W505
+            "KillSignal=SIGINT\n"
+            "TimeoutStopSec=10\n"
+            "ExecStopPost=service srsenb restart\n\n"
             "[Install]\n"
             "WantedBy=multi-user.target"
         )
-        self.assertEqual(mock_open_write_srsenb_service.written_data, srsenb_expected_service)
 
+        self.assertEqual(mock_open_write_srsue_service.written_data, srsue_expected_service)
+
+    @patch("charm.wait_for_condition", new=Mock())
     @patch("charm.service_active", side_effect=[True, False])
-    @patch("os.mkdir")
-    @patch("shutil.copy")
-    @patch("shutil.rmtree")
-    @patch("subprocess.run")
-    def test_given_service_template_when_attach_ue_action_emitted_then_srsue_service_file_is_rendered(  # noqa: E501
+    @patch("subprocess.run", new=Mock())
+    def test_given_lte_core_relation_when_ue_attach_then_srsue_service_file_is_rendered(
         self,
         _,
-        __,
-        ___,
-        ____,
-        _____,
     ):
+        self.harness.set_leader(True)
+
         with open("templates/srsue.service", "r") as f:
             srsue_service_content = f.read()
 
-        with patch("builtins.open") as mock_open:
+        with patch("builtins.open") as patch_open:
+            patch_open.side_effect = [MockOpen(), MockOpen()]
+            self.create_lte_core_relation()
+
+        with patch("builtins.open") as patch_open:
             mock_open_read_srsue_template = MockOpen(read_data=srsue_service_content)
             mock_open_write_srsue_service = MockOpen()
-            mock_open.side_effect = [
+            patch_open.side_effect = [
                 mock_open_read_srsue_template,
                 mock_open_write_srsue_service,
             ]
-            event = Mock()
-            event.params = self.ATTACH_ACTION_PARAMS
-            self.harness.charm._on_attach_ue_action(event)
+            mock_event = Mock()
+            mock_event.params = self.ATTACH_ACTION_PARAMS
+            self.harness.charm._on_attach_ue_action(event=mock_event)
 
         srsue_expected_service = (
             "[Unit]\n"
@@ -254,34 +292,34 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(mock_open_write_srsue_service.written_data, srsue_expected_service)
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir")
-    @patch("shutil.copy")
-    @patch("shutil.rmtree")
-    @patch("subprocess.run")
-    def test_given_install_event_when_install_then_status_is_maintenance(
-        self, _, __, patch_copy, ___, ____
+    @patch("os.mkdir", new=Mock())
+    @patch("shutil.copy", new=Mock())
+    @patch("shutil.rmtree", new=Mock())
+    @patch("subprocess.run", new=Mock())
+    def test_given_unit_is_leader_when_install_then_status_is_maintenance(
+        self,
+        _,
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.install.emit()
 
-        self.assertEqual(
-            self.harness.model.unit.status, MaintenanceStatus("Configuring srs env service")
-        )
+        self.assertEqual(self.harness.model.unit.status, MaintenanceStatus("Installing srsRAN"))
 
-    @patch("charm.service_active")
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
-    def test_given_service_not_yet_started_when_on_config_changed_then_srsenb_service_is_started(  # noqa: E501
+    def test_given_mme_address_is_available_when_on_config_changed_then_srsenb_service_is_restarted(  # noqa: E501
         self,
         _,
         patch_run,
-        patch_service_active,
     ):
-        patch_service_active.return_value = False
-        key_values = {}
-        self.harness.update_config(key_values=key_values)
+        self.harness.set_leader(True)
+        self.create_lte_core_relation()
+
+        self.harness.update_config(key_values={})
 
         patch_run.assert_any_call(
-            "systemctl start srsenb", shell=True, stdout=-1, encoding="utf-8"
+            "systemctl restart srsenb", shell=True, stdout=-1, encoding="utf-8"
         )
 
     @patch("shutil.rmtree")
@@ -290,6 +328,8 @@ class TestCharm(unittest.TestCase):
     def test_given_srsenb_service_is_running_when_on_stop_then_service_is_stopped(
         self, patch_run, _, __
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.stop.emit()
 
         patch_run.assert_any_call("systemctl stop srsenb", shell=True, stdout=-1, encoding="utf-8")
@@ -300,6 +340,8 @@ class TestCharm(unittest.TestCase):
     def test_given_srsenb_service_is_running_when_on_stop_then_folders_content_is_removed(
         self, _, patch_mkdir, patch_rmtree
     ):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.stop.emit()
 
         patch_rmtree.assert_has_calls(
@@ -323,6 +365,8 @@ class TestCharm(unittest.TestCase):
     @patch("os.mkdir")
     @patch("subprocess.run")
     def test_given_on_stop_when_on_stop_then_status_is_active(self, _, __, ___):
+        self.harness.set_leader(True)
+
         self.harness.charm.on.stop.emit()
 
         self.assertEqual(
@@ -334,58 +378,65 @@ class TestCharm(unittest.TestCase):
     def test_given_any_config_when_on_config_changed_then_systemd_manager_configuration_is_reloaded(  # noqa: E501
         self, _, patch_run
     ):
-        key_values = {}
-        self.harness.update_config(key_values=key_values)
+        self.harness.set_leader(True)
+        self.create_lte_core_relation()
+
+        self.harness.update_config(key_values={})
 
         patch_run.assert_any_call(
             "systemctl daemon-reload", shell=True, stdout=-1, encoding="utf-8"
         )
 
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     def test_given_any_config_and_installed_when_on_config_changed_then_status_is_active(  # noqa: E501
-        self, _, __
+        self,
+        _,
     ):
-        key_values = {}
+        self.harness.set_leader(True)
+        self.create_lte_core_relation()
 
-        self.harness.update_config(key_values=key_values)
+        self.harness.update_config(key_values={})
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started"))
 
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     def test_given_any_config_and_not_installed_when_on_config_changed_then_status_is_active(  # noqa: E501
-        self, _, __
+        self,
+        _,
     ):
-        key_values = {}
+        self.harness.set_leader(True)
+        self.create_lte_core_relation()
 
-        self.harness.update_config(key_values=key_values)
+        self.harness.update_config(key_values={})
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started"))
 
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.service_active")
+    @patch("charm.service_active", new=Mock())
     def test_given_any_config_and_started_is_true_when_on_config_changed_then_srsenb_service_is_restarted(  # noqa: E501
-        self, _, __, patch_subprocess_run
+        self, _, patch_subprocess_run
     ):
-        key_values = {}
+        self.harness.set_leader(True)
+        self.create_lte_core_relation()
 
-        self.harness.update_config(key_values=key_values)
+        self.harness.update_config(key_values={})
 
         patch_subprocess_run.assert_any_call(
             "systemctl restart srsenb", shell=True, stdout=-1, encoding="utf-8"
         )
 
     @patch("utils.service_restart")
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     def test_given_any_config_and_started_is_false_when_on_config_changed_then_srsenb_service_is_not_restarted(  # noqa: E501
-        self, _, __, patch_service_restart
+        self, _, patch_service_restart
     ):
-        key_values = {}
+        self.create_lte_core_relation()
 
-        self.harness.update_config(key_values=key_values)
+        self.harness.update_config(key_values={})
 
         patch_service_restart.assert_not_called()
 
@@ -396,8 +447,10 @@ class TestCharm(unittest.TestCase):
     def test_given_imsi_k_opc_when_attach_ue_action_then_srsue_service_is_restarted(  # noqa: E501
         self, patch_subprocess_run, _, __, patch_get_iface_ip_address
     ):
+        self.harness.set_leader(True)
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
+        self.create_lte_core_relation()
         dummy_tun_srsue_ipv4_address = "0.0.0.0"
         patch_get_iface_ip_address.return_value = dummy_tun_srsue_ipv4_address
 
@@ -419,12 +472,14 @@ class TestCharm(unittest.TestCase):
     @patch("charm.service_active")
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     def test_given_ue_running_when_attach_ue_action_then_event_fails(  # noqa: E501
-        self, patch_subprocess_run, _, patch_get_iface_ip_address, patch_service_active
+        self, __, patch_get_iface_ip_address, patch_service_active
     ):
+        self.harness.set_leader(True)
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
+        self.create_lte_core_relation()
         dummy_ue_ipv4_address = None
         patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
         patch_service_active.return_value = True
@@ -439,12 +494,14 @@ class TestCharm(unittest.TestCase):
     @patch("charm.get_iface_ip_address")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     def test_given_imsi_k_and_opc_when_attached_ue_action_then_srsue_service_sets_action_result(
-        self, patch_subprocess_run, _, patch_service_active, patch_get_iface_ip_address
+        self, _, __, patch_get_iface_ip_address
     ):
+        self.harness.set_leader(True)
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
+        self.create_lte_core_relation()
         dummy_tun_srsue_ipv4_address = "0.0.0.0"
         patch_get_iface_ip_address.return_value = dummy_tun_srsue_ipv4_address
 
@@ -460,24 +517,19 @@ class TestCharm(unittest.TestCase):
             ),
         )
 
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     @patch("charm.get_iface_ip_address")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
     def test_given_imsi_k_ops_and_mme_when_attached_ue_action_then_status_is_active(
-        self, _, __, patch_get_iface_ip_address, patch_subprocess_run
+        self, _, __, patch_get_iface_ip_address
     ):
+        self.harness.set_leader(True)
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
-
-        self.harness.update_relation_data(
-            relation_id=self.peer_relation_id,
-            app_or_unit=self.harness.charm.app.name,
-            key_values={"mme_ipv4_address": json.dumps("0.0.0.0")},
-        )
+        self.create_lte_core_relation()
         dummy_ue_ipv4_address = "192.168.128.13"
         patch_get_iface_ip_address.return_value = dummy_ue_ipv4_address
-        self.harness.charm.ue_attached = True
 
         self.harness.charm._on_attach_ue_action(mock_event)
 
@@ -486,15 +538,19 @@ class TestCharm(unittest.TestCase):
             ActiveStatus("ue attached."),
         )
 
-    @patch("subprocess.run")
+    @patch("charm.wait_for_condition")
+    @patch("subprocess.run", new=Mock())
     @patch("charm.get_iface_ip_address")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
     def test_given_attach_ue_action_when_tun_srsue_ip_is_not_available_after_timeout_then_action_fails(  # noqa: E501
-        self, _, __, patch_get_iface_ip_address, patch_subprocess_run
+        self, _, __, patch_get_iface_ip_address, patch_wait_for_condition
     ):
+        patch_wait_for_condition.return_value = False
+        self.harness.set_leader(True)
         mock_event = Mock()
         mock_event.params = self.ATTACH_ACTION_PARAMS
+        self.create_lte_core_relation()
         dummy_tun_srsue_ipv4_address = None
         patch_get_iface_ip_address.return_value = dummy_tun_srsue_ipv4_address
 
@@ -507,11 +563,10 @@ class TestCharm(unittest.TestCase):
 
     @patch("utils.service_active")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     def test_given_detach_ue_action_when_action_is_successful_then_status_is_active(  # noqa: E501
-        self, _, __, patch_service_active
+        self, _, patch_service_active
     ):
-
         mock_event = Mock()
         mock_event.params = self.DETACH_ACTION_PARAMS
         patch_service_active.return_value = True
@@ -535,9 +590,10 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     def test_given_detach_ue_action_when_detach_ue_action_then_srsue_service_sets_action_result(  # noqa: E501
-        self, _, __
+        self,
+        _,
     ):
         mock_event = Mock()
         mock_event.params = self.DETACH_ACTION_PARAMS
@@ -561,9 +617,9 @@ class TestCharm(unittest.TestCase):
             "route del default", shell=True, stdout=-1, encoding="utf-8"
         )
 
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     def test_given_on_remove_default_gw_action_when_default_gw_action_then_sets_action_result(  # noqa: E501
-        self, patch_subprocess_run
+        self,
     ):
         mock_event = Mock()
 
@@ -574,9 +630,9 @@ class TestCharm(unittest.TestCase):
             call({"status": "ok", "message": "Default route removed!"}),
         )
 
-    @patch("subprocess.run")
+    @patch("subprocess.run", new=Mock())
     def test_given_on_remove_default_gw_action_when_remove_default_gw_action_then_status_does_not_change(  # noqa: E501
-        self, _
+        self,
     ):
         mock_event = Mock()
         old_status = self.harness.charm.unit.status
@@ -584,26 +640,3 @@ class TestCharm(unittest.TestCase):
         self.harness.charm._on_remove_default_gw_action(mock_event)
 
         self.assertEqual(self.harness.charm.unit.status, old_status)
-
-    # lte-core-interface
-    @patch("subprocess.run", new=Mock())
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.service_active")
-    def test_given_lte_core_provider_charm_when_relation_is_created_then_mme_addr_is_updated_in_peer_relation_data(  # noqa: E501
-        self,
-        patch_service_active,
-        _,
-    ):
-        mme_ipv4_address = "0.0.0.0"
-        relation_data = {"mme_ipv4_address": mme_ipv4_address}
-        relation_id = self.harness.add_relation(
-            relation_name=self.relation_name, remote_app=self.remote_app_name
-        )
-
-        self.harness.update_relation_data(
-            relation_id=relation_id,
-            app_or_unit=self.remote_app_name,
-            key_values=relation_data,
-        )
-
-        self.assertEqual(self.harness.charm._mme_addr, mme_ipv4_address)

@@ -21,10 +21,10 @@ srs-enb-ue:
   ue-device-args: <UE Device arguments.>
 ```
 
-And run the deploy command:
+And run the following command:
 
 ```bash
-juju deploy charmed-osm-srs-enb-ue --config <yaml config file> --channel=edge
+juju deploy srs-enb-ue --config <yaml config file> --channel=edge
 ```
 
 
