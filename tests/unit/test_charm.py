@@ -66,9 +66,9 @@ class TestCharm(unittest.TestCase):
         return relation_id
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir", new=Mock())
-    @patch("shutil.copy", new=Mock())
-    @patch("shutil.rmtree", new=Mock())
+    @patch("os.mkdir", new=Mock)
+    @patch("shutil.copy", new=Mock)
+    @patch("shutil.rmtree", new=Mock)
     @patch("subprocess.run")
     def test_given_unit_is_leader_when_install_then_apt_cache_is_updated(
         self,
@@ -84,9 +84,9 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir", new=Mock())
-    @patch("shutil.copy", new=Mock())
-    @patch("shutil.rmtree", new=Mock())
+    @patch("os.mkdir", new=Mock)
+    @patch("shutil.copy", new=Mock)
+    @patch("shutil.rmtree", new=Mock)
     @patch("subprocess.run")
     def test_given_unit_is_leader_when_install_then_apt_packages_are_installed(
         self,
@@ -106,9 +106,9 @@ class TestCharm(unittest.TestCase):
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.mkdir")
-    @patch("shutil.copy", new=Mock())
+    @patch("shutil.copy", new=Mock)
     @patch("shutil.rmtree")
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_unit_is_leader_when_install_then_srs_directories_are_removed_and_recreated(
         self, patch_rmtree, patch_mkdir, _
     ):
@@ -136,9 +136,9 @@ class TestCharm(unittest.TestCase):
 
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir", new=Mock())
-    @patch("shutil.copy", new=Mock())
-    @patch("shutil.rmtree", new=Mock())
+    @patch("os.mkdir", new=Mock)
+    @patch("shutil.copy", new=Mock)
+    @patch("shutil.rmtree", new=Mock)
     @patch("subprocess.run")
     def test_given_unit_is_leader_when_install_then_srsran_is_installed(
         self,
@@ -157,10 +157,10 @@ class TestCharm(unittest.TestCase):
         )  # TODO Change test to validate install
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir", new=Mock())
+    @patch("os.mkdir", new=Mock)
     @patch("shutil.copy")
-    @patch("shutil.rmtree", new=Mock())
-    @patch("subprocess.run", new=Mock())
+    @patch("shutil.rmtree", new=Mock)
+    @patch("subprocess.run", new=Mock)
     def test_given_unit_is_leader_when_install_then_files_are_copied(
         self,
         patch_copy,
@@ -180,9 +180,9 @@ class TestCharm(unittest.TestCase):
         patch_copy.assert_has_calls(calls=calls)
 
     @patch("charm.ip_from_default_iface")
-    @patch("charm.wait_for_condition", new=Mock())
+    @patch("charm.wait_for_condition", new=Mock)
     @patch("charm.service_active", side_effect=[True, False])
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_lte_core_relation_when_mme_address_is_available_then_srsenb_service_file_is_rendered(  # noqa: E501
         self,
         _,
@@ -224,9 +224,9 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(mock_open_write_srsue_service.written_data, srsue_expected_service)
 
-    @patch("charm.wait_for_condition", new=Mock())
+    @patch("charm.wait_for_condition", new=Mock)
     @patch("charm.service_active", side_effect=[True, False])
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_lte_core_relation_when_ue_attach_then_srsue_service_file_is_rendered(
         self,
         _,
@@ -272,10 +272,10 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(mock_open_write_srsue_service.written_data, srsue_expected_service)
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("os.mkdir", new=Mock())
-    @patch("shutil.copy", new=Mock())
-    @patch("shutil.rmtree", new=Mock())
-    @patch("subprocess.run", new=Mock())
+    @patch("os.mkdir", new=Mock)
+    @patch("shutil.copy", new=Mock)
+    @patch("shutil.rmtree", new=Mock)
+    @patch("subprocess.run", new=Mock)
     def test_given_unit_is_leader_when_install_then_status_is_maintenance(
         self,
         _,
@@ -367,7 +367,7 @@ class TestCharm(unittest.TestCase):
             "systemctl daemon-reload", shell=True, stdout=-1, encoding="utf-8"
         )
 
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     @patch("builtins.open", new_callable=mock_open)
     def test_given_any_config_and_installed_when_on_config_changed_then_status_is_active(  # noqa: E501
         self,
@@ -380,7 +380,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started"))
 
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     @patch("builtins.open", new_callable=mock_open)
     def test_given_any_config_and_not_installed_when_on_config_changed_then_status_is_active(  # noqa: E501
         self,
@@ -395,7 +395,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.service_active", new=Mock())
+    @patch("charm.service_active", new=Mock)
     def test_given_any_config_and_started_is_true_when_on_config_changed_then_srsenb_service_is_restarted(  # noqa: E501
         self, _, patch_subprocess_run
     ):
@@ -409,7 +409,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("utils.service_restart")
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     @patch("builtins.open", new_callable=mock_open)
     def test_given_any_config_and_started_is_false_when_on_config_changed_then_srsenb_service_is_not_restarted(  # noqa: E501
         self, _, patch_service_restart
@@ -452,7 +452,7 @@ class TestCharm(unittest.TestCase):
     @patch("charm.service_active")
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_ue_running_when_attach_ue_action_then_event_fails(  # noqa: E501
         self, __, patch_get_iface_ip_address, patch_service_active
     ):
@@ -474,7 +474,7 @@ class TestCharm(unittest.TestCase):
     @patch("charm.get_iface_ip_address")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_imsi_k_and_opc_when_attached_ue_action_then_srsue_service_sets_action_result(
         self, _, __, patch_get_iface_ip_address
     ):
@@ -497,7 +497,7 @@ class TestCharm(unittest.TestCase):
             ),
         )
 
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     @patch("charm.get_iface_ip_address")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
@@ -519,7 +519,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.wait_for_condition")
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     @patch("charm.get_iface_ip_address")
     @patch("charm.service_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
@@ -543,7 +543,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("utils.service_active")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_detach_ue_action_when_action_is_successful_then_status_is_active(  # noqa: E501
         self, _, patch_service_active
     ):
@@ -570,7 +570,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_detach_ue_action_when_detach_ue_action_then_srsue_service_sets_action_result(  # noqa: E501
         self,
         _,
@@ -597,7 +597,7 @@ class TestCharm(unittest.TestCase):
             "route del default", shell=True, stdout=-1, encoding="utf-8"
         )
 
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_on_remove_default_gw_action_when_default_gw_action_then_sets_action_result(  # noqa: E501
         self,
     ):
@@ -610,7 +610,7 @@ class TestCharm(unittest.TestCase):
             call({"status": "ok", "message": "Default route removed!"}),
         )
 
-    @patch("subprocess.run", new=Mock())
+    @patch("subprocess.run", new=Mock)
     def test_given_on_remove_default_gw_action_when_remove_default_gw_action_then_status_does_not_change(  # noqa: E501
         self,
     ):
