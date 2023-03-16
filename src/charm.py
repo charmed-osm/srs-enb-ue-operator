@@ -17,7 +17,7 @@ from ops.charm import (
     CharmBase,
     ConfigChangedEvent,
     InstallEvent,
-    RemoveEvent,
+    StopEvent,
 )
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
@@ -35,33 +35,14 @@ from utils import (
 )
 
 logger = logging.getLogger(__name__)
-#
-#
-# CONFIG_PATHS = {
-#     "enb": f"{CONFIG_PATH}/enb.conf",
-#     "drb": f"{CONFIG_PATH}/drb.conf",
-#     "rr": f"{CONFIG_PATH}/rr.conf",
-#     "sib": f"{CONFIG_PATH}/sib.conf",
-#     "sib.mbsfn": f"{CONFIG_PATH}/sib.mbsfn.conf",
-#     "ue": f"{CONFIG_PATH}/ue.conf",
-# }
-#
-# CONFIG_ORIGIN_PATHS = {
-#     "enb": f"{SRC_PATH}/srsenb/enb.conf.example",
-#     "drb": f"{SRC_PATH}/srsenb/drb.conf.example",
-#     "rr": f"{SRC_PATH}/srsenb/rr.conf.example",
-#     "sib": f"{SRC_PATH}/srsenb/sib.conf.example",
-#     "sib.mbsfn": f"{SRC_PATH}/srsenb/sib.conf.mbsfn.example",
-#     "ue": f"{SRC_PATH}/srsue/ue.conf.example",
-# }
+
+CONFIG_PATH = "/snap/srsran/current/config"
 
 SRS_ENB_SERVICE = "srsenb"
-SRS_ENB_BINARY = f"{BUILD_PATH}/srsenb/src/srsenb"
 SRS_ENB_SERVICE_TEMPLATE = "./templates/srsenb.service"
 SRS_ENB_SERVICE_PATH = "/etc/systemd/system/srsenb.service"
 
 SRS_UE_SERVICE = "srsue"
-SRS_UE_BINARY = f"{BUILD_PATH}/srsue/src/srsue"
 SRS_UE_SERVICE_TEMPLATE = "./templates/srsue.service"
 SRS_UE_SERVICE_PATH = "/etc/systemd/system/srsue.service"
 
@@ -77,7 +58,7 @@ class SrsRANCharm(CharmBase):
 
         # Basic hooks
         self.framework.observe(self.on.install, self._on_install)
-        self.framework.observe(self.on.remove, self._on_remove)
+        self.framework.observe(self.on.stop, self._on_stop)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
 
         # Actions hooks
@@ -98,7 +79,7 @@ class SrsRANCharm(CharmBase):
         self.unit.status = MaintenanceStatus("Installing srsRAN")
         self._install_srsran()
 
-    def _on_remove(self, _: RemoveEvent) -> None:
+    def _on_stop(self, _: StopEvent) -> None:
         """Triggered on stop event."""
         if not self.unit.is_leader():
             return
@@ -234,7 +215,7 @@ class SrsRANCharm(CharmBase):
 
     def _get_srsenb_command(self) -> str:
         """Returns srs enb command."""
-        srsenb_command = [SRS_ENB_BINARY]
+        srsenb_command = ["srsran.srsenb"]
         srsenb_command.extend(
             (
                 f"--enb.mme_addr={self._mme_address}",
@@ -247,10 +228,10 @@ class SrsRANCharm(CharmBase):
                 f'--enb.name={self.config.get("enb-name")}',
                 f'--enb.mcc={self.config.get("enb-mcc")}',
                 f'--enb.mnc={self.config.get("enb-mnc")}',
-                f'--enb_files.rr_config={CONFIG_PATHS["rr"]}',
-                f'--enb_files.sib_config={CONFIG_PATHS["sib"]}',
-                f'--enb_files.drb_config={CONFIG_PATHS["drb"]}',
-                CONFIG_PATHS["enb"],
+                f"--enb_files.rr_config={CONFIG_PATH}/rr.conf",
+                f"--enb_files.sib_config={CONFIG_PATH}/sib.conf",
+                f"--enb_files.drb_config={CONFIG_PATH}/drb.conf",
+                f"{CONFIG_PATH}/enb.conf",
                 f'--rf.device_name={self.config.get("enb-rf-device-name")}',
                 f'--rf.device_args={self.config.get("enb-rf-device-args")}',
             )
@@ -259,7 +240,7 @@ class SrsRANCharm(CharmBase):
 
     def _get_srsue_command(self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str) -> str:
         """Returns srs ue command."""
-        srsue_command = [SRS_UE_BINARY]
+        srsue_command = ["srsran.srsue"]
         srsue_command.extend(
             (
                 f"--usim.imsi={ue_usim_imsi}",
@@ -273,7 +254,7 @@ class SrsRANCharm(CharmBase):
                 f'--nas.apn={self.config.get("ue-nas-apn")}',
                 f'--rf.device_name={self.config.get("ue-device-name")}',
                 f'--rf.device_args={self.config.get("ue-device-args")}',
-                CONFIG_PATHS["ue"],
+                f"{CONFIG_PATH}/ue.conf",
             )
         )
         return " ".join(srsue_command)
