@@ -113,7 +113,7 @@ class TestCharm(unittest.TestCase):
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
-            f"ExecStart=srsran.srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/snap/srsran/current/config/rr.conf --enb_files.sib_config=/snap/srsran/current/config/sib.conf --enb_files.drb_config=/snap/srsran/current/config/drb.conf /snap/srsran/current/config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n"  # noqa: E501, W505
+            f"ExecStart=/snap/bin/srsran.srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/snap/srsran/current/config/rr.conf --enb_files.sib_config=/snap/srsran/current/config/sib.conf /snap/srsran/current/config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n"  # noqa: E501, W505
             "User=root\n"
             "KillSignal=SIGINT\n"
             "TimeoutStopSec=10\n"
@@ -160,7 +160,7 @@ class TestCharm(unittest.TestCase):
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
-            "ExecStart=srsran.srsue --usim.imsi=whatever-imsi --usim.k=whatever-k --usim.opc=whatever-opc --usim.algo=milenage --nas.apn=oai.ipv4 --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /snap/srsran/current/config/ue.conf\n"  # noqa: E501, W505
+            "ExecStart=sudo /snap/bin/srsran.srsue --usim.imsi=whatever-imsi --usim.k=whatever-k --usim.opc=whatever-opc --usim.algo=milenage --nas.apn=oai.ipv4 --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /snap/srsran/current/config/ue.conf\n"  # noqa: E501, W505
             "User=root\n"
             "KillSignal=SIGINT\n"
             "TimeoutStopSec=10\n"

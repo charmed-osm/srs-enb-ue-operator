@@ -215,7 +215,7 @@ class SrsRANCharm(CharmBase):
 
     def _get_srsenb_command(self) -> str:
         """Returns srs enb command."""
-        srsenb_command = ["srsran.srsenb"]
+        srsenb_command = ["/snap/bin/srsran.srsenb"]
         srsenb_command.extend(
             (
                 f"--enb.mme_addr={self._mme_address}",
@@ -230,7 +230,6 @@ class SrsRANCharm(CharmBase):
                 f'--enb.mnc={self.config.get("enb-mnc")}',
                 f"--enb_files.rr_config={CONFIG_PATH}/rr.conf",
                 f"--enb_files.sib_config={CONFIG_PATH}/sib.conf",
-                f"--enb_files.drb_config={CONFIG_PATH}/drb.conf",
                 f"{CONFIG_PATH}/enb.conf",
                 f'--rf.device_name={self.config.get("enb-rf-device-name")}',
                 f'--rf.device_args={self.config.get("enb-rf-device-args")}',
@@ -240,7 +239,7 @@ class SrsRANCharm(CharmBase):
 
     def _get_srsue_command(self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str) -> str:
         """Returns srs ue command."""
-        srsue_command = ["srsran.srsue"]
+        srsue_command = ["sudo", "/snap/bin/srsran.srsue"]
         srsue_command.extend(
             (
                 f"--usim.imsi={ue_usim_imsi}",
