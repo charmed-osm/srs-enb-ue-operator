@@ -92,37 +92,34 @@ class TestCharm(unittest.TestCase):
         patch_ip_from_default_iface.return_value = bind_address
         self.harness.set_leader(True)
 
-        with open("templates/srsue.service", "r") as f:
-            srsue_service_content = f.read()
+        with open("templates/srsenb.service", "r") as f:
+            srsenb_service_content = f.read()
 
         with patch("builtins.open") as patch_open:
-            mock_open_read_srsue_template = MockOpen(read_data=srsue_service_content)
-            mock_open_write_srsue_service = MockOpen()
+            mock_open_read_srsue_template = MockOpen(read_data=srsenb_service_content)
+            mock_open_write_srsenb_service = MockOpen()
             patch_open.side_effect = [
                 mock_open_read_srsue_template,
-                mock_open_write_srsue_service,
+                mock_open_write_srsenb_service,
             ]
             self.create_lte_core_relation()
 
-        srsue_expected_service = (
+        srsenb_expected_service = (
             "[Unit]\n"
-            "Description=Srs User Emulator Service\n"
+            "Description=Srs EnodeB Service\n"
             "After=network.target\n"
             "StartLimitIntervalSec=0\n"
             "[Service]\n"
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
-            f"ExecStart=/snap/bin/srsran.srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/snap/srsran/current/config/rr.conf --enb_files.sib_config=/snap/srsran/current/config/sib.conf /snap/srsran/current/config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n"  # noqa: E501, W505
             "User=root\n"
-            "KillSignal=SIGINT\n"
-            "TimeoutStopSec=10\n"
-            "ExecStopPost=service srsenb restart\n\n"
+            f"ExecStart=/snap/bin/srsran.srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/snap/srsran/current/config/rr.conf --enb_files.sib_config=/snap/srsran/current/config/sib.conf /snap/srsran/current/config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n\n"  # noqa: E501, W505
             "[Install]\n"
             "WantedBy=multi-user.target"
         )
 
-        self.assertEqual(mock_open_write_srsue_service.written_data, srsue_expected_service)
+        self.assertEqual(mock_open_write_srsenb_service.written_data, srsenb_expected_service)
 
     @patch("charm.wait_for_condition", new=Mock)
     @patch("charm.service_active", side_effect=[True, False])
@@ -161,7 +158,7 @@ class TestCharm(unittest.TestCase):
             "Restart=always\n"
             "RestartSec=1\n"
             "ExecStart=sudo /snap/bin/srsran.srsue --usim.imsi=whatever-imsi --usim.k=whatever-k --usim.opc=whatever-opc --usim.algo=milenage --nas.apn=oai.ipv4 --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /snap/srsran/current/config/ue.conf\n"  # noqa: E501, W505
-            "User=root\n"
+            "User=ubuntu\n"
             "KillSignal=SIGINT\n"
             "TimeoutStopSec=10\n"
             "ExecStopPost=service srsenb restart\n\n"
