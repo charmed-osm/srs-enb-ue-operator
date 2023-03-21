@@ -24,10 +24,10 @@ def ip_from_default_iface() -> Optional[str]:
     """Returns the default interface's IP address."""
     default_gateway = netifaces.gateways()["default"]
     if netifaces.AF_INET in default_gateway:
-        _, iface = netifaces.gateways()["default"][netifaces.AF_INET]
+        _, iface = default_gateway[netifaces.AF_INET]
         default_interface = netifaces.ifaddresses(iface)
         if netifaces.AF_INET in default_interface:
-            return netifaces.ifaddresses(iface)[netifaces.AF_INET][0].get("addr")
+            return default_interface[netifaces.AF_INET][0].get("addr")
     return None
 
 

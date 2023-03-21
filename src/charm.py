@@ -238,11 +238,11 @@ class SrsRANCharm(CharmBase):
     @property
     def _bind_address(self) -> Optional[str]:
         """Returns bind address."""
-        return (
-            bind_address
-            if (bind_address := self.model.config.get("bind-address"))
-            else ip_from_default_iface()
-        )
+        bind_interface = self.model.config.get("bind-interface")
+        if not bind_interface:
+            return ip_from_default_iface()
+        else:
+            return get_iface_ip_address(iface=bind_interface)
 
 
 if __name__ == "__main__":

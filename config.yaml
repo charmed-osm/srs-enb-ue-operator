@@ -2,11 +2,10 @@
 # See LICENSE file for licensing details.
 
 options:
-  bind-address:
+  bind-interface:
     type: string
     description: |
-      Local IP address to bind for GTP and S1AP connection.
-    default: ""
+      Local interface to bind for GTP and S1AP connection.
   enb-name:
     type: string
     description: |
