@@ -2,11 +2,9 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charm for the SRS RAN simulator."""
+"""Charm for the srsRAN simulator."""
 
 import logging
-import os
-import shutil
 from typing import Optional, Union
 
 from charms.lte_core_interface.v0.lte_core_interface import (
@@ -25,10 +23,7 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 
 from utils import (
-    copy_files,
     get_iface_ip_address,
-    git_clone,
-    install_apt_packages,
     ip_from_default_iface,
     service_active,
     service_enable,
@@ -41,62 +36,21 @@ from utils import (
 
 logger = logging.getLogger(__name__)
 
-APT_REQUIREMENTS = [
-    "git",
-    "libzmq3-dev",
-    "cmake",
-    "build-essential",
-    "libmbedtls-dev",
-    "libboost-program-options-dev",
-    "libsctp-dev",
-    "libconfig++-dev",
-    "libfftw3-dev",
-    "net-tools",
-]
-
-GIT_REPO = "https://github.com/srsLTE/srsLTE.git"
-GIT_REPO_TAG = "release_20_10"
-
-SRC_PATH = "/srsLTE"
-BUILD_PATH = "/build"
-CONFIG_PATH = "/config"
-SERVICE_PATH = "/service"
-
-CONFIG_PATHS = {
-    "enb": f"{CONFIG_PATH}/enb.conf",
-    "drb": f"{CONFIG_PATH}/drb.conf",
-    "rr": f"{CONFIG_PATH}/rr.conf",
-    "sib": f"{CONFIG_PATH}/sib.conf",
-    "sib.mbsfn": f"{CONFIG_PATH}/sib.mbsfn.conf",
-    "ue": f"{CONFIG_PATH}/ue.conf",
-}
-
-CONFIG_ORIGIN_PATHS = {
-    "enb": f"{SRC_PATH}/srsenb/enb.conf.example",
-    "drb": f"{SRC_PATH}/srsenb/drb.conf.example",
-    "rr": f"{SRC_PATH}/srsenb/rr.conf.example",
-    "sib": f"{SRC_PATH}/srsenb/sib.conf.example",
-    "sib.mbsfn": f"{SRC_PATH}/srsenb/sib.conf.mbsfn.example",
-    "ue": f"{SRC_PATH}/srsue/ue.conf.example",
-}
+CONFIG_PATH = "/snap/srsran/current/config"
 
 SRS_ENB_SERVICE = "srsenb"
-SRS_ENB_BINARY = f"{BUILD_PATH}/srsenb/src/srsenb"
 SRS_ENB_SERVICE_TEMPLATE = "./templates/srsenb.service"
 SRS_ENB_SERVICE_PATH = "/etc/systemd/system/srsenb.service"
 
 SRS_UE_SERVICE = "srsue"
-SRS_UE_BINARY = f"{BUILD_PATH}/srsue/src/srsue"
 SRS_UE_SERVICE_TEMPLATE = "./templates/srsue.service"
 SRS_UE_SERVICE_PATH = "/etc/systemd/system/srsue.service"
-
-SRS_ENB_UE_BUILD_COMMAND = f"cd {BUILD_PATH} && cmake {SRC_PATH} && make -j `nproc` srsenb srsue"
 
 WAIT_FOR_UE_IP_TIMEOUT = 10
 
 
-class SrsLteCharm(CharmBase):
-    """srsRAN LTE charm."""
+class SrsRANCharm(CharmBase):
+    """srsRAN charm."""
 
     def __init__(self, *args):
         """Observes various events."""
@@ -123,18 +77,13 @@ class SrsLteCharm(CharmBase):
         if not self.unit.is_leader():
             return
         self.unit.status = MaintenanceStatus("Installing srsRAN")
-        install_apt_packages(APT_REQUIREMENTS)
-        self._reset_environment()
-        self._build_srsran()
-        copy_files(origin=CONFIG_ORIGIN_PATHS, destination=CONFIG_PATHS)
+        self._install_srsran()
 
     def _on_stop(self, _: StopEvent) -> None:
         """Triggered on stop event."""
         if not self.unit.is_leader():
             return
-        self._reset_environment()
-        service_stop(SRS_ENB_SERVICE)
-        self.unit.status = BlockedStatus("Unit is down, service has stopped")
+        self._uninstall_srsran()
 
     def _on_config_changed(self, _: Union[ConfigChangedEvent, LTECoreAvailableEvent]) -> None:
         """Triggered on config changed event."""
@@ -211,10 +160,16 @@ class SrsLteCharm(CharmBase):
         )
 
     @staticmethod
-    def _build_srsran() -> None:
-        """Build srsRAN."""
-        git_clone(GIT_REPO, output_folder=SRC_PATH, branch=GIT_REPO_TAG, depth=1)
-        shell(SRS_ENB_UE_BUILD_COMMAND)
+    def _install_srsran() -> None:
+        """Installs srsRAN snap."""
+        shell("snap install srsran --edge --devmode")
+        logger.info("Installed srsRAN snap")
+
+    @staticmethod
+    def _uninstall_srsran() -> None:
+        """Removes srsRAN snap."""
+        shell("snap remove srsran --purge")
+        logger.info("Removed srsRAN snap")
 
     def _configure_srsue_service(
         self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str
@@ -260,7 +215,7 @@ class SrsLteCharm(CharmBase):
 
     def _get_srsenb_command(self) -> str:
         """Returns srs enb command."""
-        srsenb_command = [SRS_ENB_BINARY]
+        srsenb_command = ["/snap/bin/srsran.srsenb"]
         srsenb_command.extend(
             (
                 f"--enb.mme_addr={self._mme_address}",
@@ -273,10 +228,9 @@ class SrsLteCharm(CharmBase):
                 f'--enb.name={self.config.get("enb-name")}',
                 f'--enb.mcc={self.config.get("enb-mcc")}',
                 f'--enb.mnc={self.config.get("enb-mnc")}',
-                f'--enb_files.rr_config={CONFIG_PATHS["rr"]}',
-                f'--enb_files.sib_config={CONFIG_PATHS["sib"]}',
-                f'--enb_files.drb_config={CONFIG_PATHS["drb"]}',
-                CONFIG_PATHS["enb"],
+                f"--enb_files.rr_config={CONFIG_PATH}/rr.conf",
+                f"--enb_files.sib_config={CONFIG_PATH}/sib.conf",
+                f"{CONFIG_PATH}/enb.conf",
                 f'--rf.device_name={self.config.get("enb-rf-device-name")}',
                 f'--rf.device_args={self.config.get("enb-rf-device-args")}',
             )
@@ -285,7 +239,7 @@ class SrsLteCharm(CharmBase):
 
     def _get_srsue_command(self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str) -> str:
         """Returns srs ue command."""
-        srsue_command = [SRS_UE_BINARY]
+        srsue_command = ["sudo", "/snap/bin/srsran.srsue"]
         srsue_command.extend(
             (
                 f"--usim.imsi={ue_usim_imsi}",
@@ -299,25 +253,10 @@ class SrsLteCharm(CharmBase):
                 f'--nas.apn={self.config.get("ue-nas-apn")}',
                 f'--rf.device_name={self.config.get("ue-device-name")}',
                 f'--rf.device_args={self.config.get("ue-device-args")}',
-                CONFIG_PATHS["ue"],
+                f"{CONFIG_PATH}/ue.conf",
             )
         )
         return " ".join(srsue_command)
-
-    @staticmethod
-    def _reset_environment() -> None:
-        """Resets environment.
-
-        Remove old folders (if they exist) and create needed ones.
-        """
-        shutil.rmtree(SRC_PATH, ignore_errors=True)
-        shutil.rmtree(BUILD_PATH, ignore_errors=True)
-        shutil.rmtree(CONFIG_PATH, ignore_errors=True)
-        shutil.rmtree(SERVICE_PATH, ignore_errors=True)
-        os.mkdir(SRC_PATH)
-        os.mkdir(BUILD_PATH)
-        os.mkdir(CONFIG_PATH)
-        os.mkdir(SERVICE_PATH)
 
     @property
     def _mme_address(self) -> Optional[str]:
@@ -346,4 +285,4 @@ class SrsLteCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    main(SrsLteCharm)
+    main(SrsRANCharm)

@@ -4,16 +4,14 @@
 """Set of utils functions used in charm."""
 
 import logging
-import shutil
 import subprocess
 import time
 from subprocess import CalledProcessError
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 import netifaces  # type: ignore[import]
 from netaddr import IPAddress, IPNetwork  # type: ignore[import]
 from netaddr.core import AddrFormatError  # type: ignore[import]
-from netifaces import AF_INET
 
 logger = logging.getLogger(__name__)
 
@@ -27,37 +25,11 @@ def service_active(service_name: str) -> bool:
         return False
 
 
-def install_apt_packages(package_list: List[str]) -> None:
-    """Installs a given list of packages."""
-    package_list_str = " ".join(package_list)
-    shell("sudo apt -qq update")
-    shell(f"sudo apt -y install {package_list_str}")
-    logger.info(f"Installed packages: {package_list_str}")
-
-
-def git_clone(
-    repo: str,
-    output_folder: str,
-    branch: str,
-    depth: int,
-) -> None:
-    """Runs git clone of a given repo."""
-    shell(f"git clone --branch={branch} --depth={depth} {repo} {output_folder}")
-    logger.info("Cloned git repository")
-
-
 def shell(command: str) -> str:
     """Runs a shell command."""
     response = subprocess.run(command, shell=True, stdout=subprocess.PIPE, encoding="utf-8")
     response.check_returncode()
     return response.stdout
-
-
-def copy_files(origin: Dict[str, str], destination: Dict[str, str]) -> None:
-    """Copy files from source to destination."""
-    for config, origin_path in origin.items():
-        destination_path = destination[config]
-        shutil.copy(origin_path, destination_path)
 
 
 def get_local_ipv4_networks() -> List[IPNetwork]:
@@ -146,7 +118,7 @@ def get_iface_ip_address(iface: str) -> Optional[str]:
         str: UE's IP address.
     """
     try:
-        return netifaces.ifaddresses(iface)[AF_INET][0]["addr"]
+        return netifaces.ifaddresses(iface)[netifaces.AF_INET][0]["addr"]
     except ValueError:
         logging.error(f"Could not get IP address. {iface} is not a valid interface.")
         return None

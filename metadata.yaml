@@ -6,8 +6,6 @@ description: |
   Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (SRS)](https://www.srslte.com/).
 summary: |
   Open-source 4G EnodeB and User emulators developed by [Software Radio Systems (SRS)](https://www.srslte.com/).
-series:
-  - focal
 
 requires:
   lte-core:

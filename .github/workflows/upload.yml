@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - uses: canonical/charming-actions/upload-charm@2.0.0-rc
+      - uses: canonical/charming-actions/upload-charm@2.2.2
         with:
           credentials: "${{ secrets.CHARMCRAFT_AUTH }}"
           github-token: "${{ secrets.GITHUB_TOKEN }}"

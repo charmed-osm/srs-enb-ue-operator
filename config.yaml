@@ -41,7 +41,7 @@ options:
     type: string
     description: |
       NAS Access Point Name (APN).
-    default: oai.ipv4
+    default: default
   ue-device-name:
     type: string
     description: |
