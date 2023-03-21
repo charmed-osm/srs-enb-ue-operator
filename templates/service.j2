@@ -1,13 +1,18 @@
 [Unit]
-Description=Srs EnodeB Service
+Description={{ description }}
 After=network.target
 StartLimitIntervalSec=0
 [Service]
 Type=simple
 Restart=always
 RestartSec=1
-User=root
+User={{ user }}
 ExecStart={{ command }}
+KillSignal=SIGINT
+TimeoutStopSec=10
+{%- if exec_stop_post %}
+ExecStopPost={{ exec_stop_post }}
+{%- endif %}
 
 [Install]
 WantedBy=multi-user.target

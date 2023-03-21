@@ -6,7 +6,6 @@
 import logging
 import subprocess
 import time
-from subprocess import CalledProcessError
 from typing import Callable, List, Optional
 
 import netifaces  # type: ignore[import]
@@ -14,15 +13,6 @@ from netaddr import IPAddress, IPNetwork  # type: ignore[import]
 from netaddr.core import AddrFormatError  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
-
-
-def service_active(service_name: str) -> bool:
-    """Returns whether a given service is active."""
-    try:
-        response = shell(f"systemctl is-active {service_name}")
-        return response == "active\n"
-    except CalledProcessError:
-        return False
 
 
 def shell(command: str) -> str:
@@ -54,34 +44,6 @@ def is_ipv4(ip: str) -> bool:
         return True
     except AddrFormatError:
         return False
-
-
-def _systemctl(action: str, service_name: str) -> None:
-    shell(f"systemctl {action} {service_name}")
-
-
-def service_restart(service_name: str) -> None:
-    """Restarts a given service."""
-    _systemctl("restart", service_name)
-    logger.info("Service %s restarted", service_name)
-
-
-def service_stop(service_name: str) -> None:
-    """Stops a given service."""
-    _systemctl("stop", service_name)
-    logger.info("Service %s stopped", service_name)
-
-
-def service_enable(service_name: str) -> None:
-    """Enables a given service."""
-    _systemctl("enable", service_name)
-    logger.info("Service %s enabled", service_name)
-
-
-def systemctl_daemon_reload() -> None:
-    """Runs `systemctl daemon-reload`."""
-    shell("systemctl daemon-reload")
-    logger.info("Systemd manager configuration reloaded")
 
 
 def ip_from_default_iface() -> Optional[str]:

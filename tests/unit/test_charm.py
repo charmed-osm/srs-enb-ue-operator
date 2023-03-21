@@ -92,21 +92,21 @@ class TestCharm(unittest.TestCase):
         patch_ip_from_default_iface.return_value = bind_address
         self.harness.set_leader(True)
 
-        with open("templates/srsenb.service", "r") as f:
-            srsenb_service_content = f.read()
+        with open("templates/service.j2", "r") as f:
+            service_template = f.read()
 
         with patch("builtins.open") as patch_open:
-            mock_open_read_srsue_template = MockOpen(read_data=srsenb_service_content)
+            mock_open_read_service_template = MockOpen(read_data=service_template)
             mock_open_write_srsenb_service = MockOpen()
             patch_open.side_effect = [
-                mock_open_read_srsue_template,
+                mock_open_read_service_template,
                 mock_open_write_srsenb_service,
             ]
             self.create_lte_core_relation()
 
         srsenb_expected_service = (
             "[Unit]\n"
-            "Description=Srs EnodeB Service\n"
+            "Description=SRS eNodeB Emulator Service\n"
             "After=network.target\n"
             "StartLimitIntervalSec=0\n"
             "[Service]\n"
@@ -114,7 +114,9 @@ class TestCharm(unittest.TestCase):
             "Restart=always\n"
             "RestartSec=1\n"
             "User=root\n"
-            f"ExecStart=/snap/bin/srsran.srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/snap/srsran/current/config/rr.conf --enb_files.sib_config=/snap/srsran/current/config/sib.conf /snap/srsran/current/config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n\n"  # noqa: E501, W505
+            f"ExecStart=/snap/bin/srsran.srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={bind_address} --enb.s1c_bind_addr={bind_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/snap/srsran/current/config/rr.conf --enb_files.sib_config=/snap/srsran/current/config/sib.conf /snap/srsran/current/config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6\n"  # noqa: E501, W505
+            f"KillSignal=SIGINT\n"
+            f"TimeoutStopSec=10\n\n"
             "[Install]\n"
             "WantedBy=multi-user.target"
         )
@@ -122,7 +124,7 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(mock_open_write_srsenb_service.written_data, srsenb_expected_service)
 
     @patch("charm.wait_for_condition", new=Mock)
-    @patch("charm.service_active", side_effect=[True, False])
+    @patch("linux_service.Service.is_active", side_effect=[True, False])
     @patch("subprocess.run", new=Mock())
     def test_given_lte_core_relation_when_ue_attach_then_srsue_service_file_is_rendered(
         self,
@@ -130,18 +132,18 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.set_leader(True)
 
-        with open("templates/srsue.service", "r") as f:
-            srsue_service_content = f.read()
+        with open("templates/service.j2", "r") as f:
+            service_template = f.read()
 
         with patch("builtins.open") as patch_open:
             patch_open.side_effect = [MockOpen(), MockOpen()]
             self.create_lte_core_relation()
 
         with patch("builtins.open") as patch_open:
-            mock_open_read_srsue_template = MockOpen(read_data=srsue_service_content)
+            mock_open_read_service_template = MockOpen(read_data=service_template)
             mock_open_write_srsue_service = MockOpen()
             patch_open.side_effect = [
-                mock_open_read_srsue_template,
+                mock_open_read_service_template,
                 mock_open_write_srsue_service,
             ]
             mock_event = Mock()
@@ -150,15 +152,15 @@ class TestCharm(unittest.TestCase):
 
         srsue_expected_service = (
             "[Unit]\n"
-            "Description=Srs User Emulator Service\n"
+            "Description=SRS UE Emulator Service\n"
             "After=network.target\n"
             "StartLimitIntervalSec=0\n"
             "[Service]\n"
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
-            "ExecStart=sudo /snap/bin/srsran.srsue --usim.imsi=whatever-imsi --usim.k=whatever-k --usim.opc=whatever-opc --usim.algo=milenage --nas.apn=default --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /snap/srsran/current/config/ue.conf\n"  # noqa: E501, W505
             "User=ubuntu\n"
+            "ExecStart=sudo /snap/bin/srsran.srsue --usim.imsi=whatever-imsi --usim.k=whatever-k --usim.opc=whatever-opc --usim.algo=milenage --nas.apn=default --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /snap/srsran/current/config/ue.conf\n"  # noqa: E501, W505
             "KillSignal=SIGINT\n"
             "TimeoutStopSec=10\n"
             "ExecStopPost=service srsenb restart\n\n"
@@ -241,7 +243,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("subprocess.run")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("charm.service_active", new=Mock)
+    @patch("linux_service.Service.is_active", new=Mock)
     def test_given_any_config_and_started_is_true_when_on_config_changed_then_srsenb_service_is_restarted(  # noqa: E501
         self, _, patch_subprocess_run
     ):
@@ -254,7 +256,7 @@ class TestCharm(unittest.TestCase):
             "systemctl restart srsenb", shell=True, stdout=-1, encoding="utf-8"
         )
 
-    @patch("utils.service_restart")
+    @patch("linux_service.Service.restart")
     @patch("subprocess.run", new=Mock())
     @patch("builtins.open", new_callable=mock_open)
     def test_given_any_config_and_started_is_false_when_on_config_changed_then_srsenb_service_is_not_restarted(  # noqa: E501
@@ -267,7 +269,7 @@ class TestCharm(unittest.TestCase):
         patch_service_restart.assert_not_called()
 
     @patch("charm.get_iface_ip_address")
-    @patch("charm.service_active", side_effect=[True, False])
+    @patch("linux_service.Service.is_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_imsi_k_opc_when_attach_ue_action_then_srsue_service_is_restarted(  # noqa: E501
@@ -295,7 +297,7 @@ class TestCharm(unittest.TestCase):
             ),
         )
 
-    @patch("charm.service_active")
+    @patch("linux_service.Service.is_active")
     @patch("charm.get_iface_ip_address")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run", new=Mock())
@@ -318,7 +320,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.get_iface_ip_address")
-    @patch("charm.service_active", side_effect=[True, False])
+    @patch("linux_service.Service.is_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run", new=Mock())
     def test_given_imsi_k_and_opc_when_attached_ue_action_then_srsue_service_sets_action_result(
@@ -345,7 +347,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("subprocess.run", new=Mock())
     @patch("charm.get_iface_ip_address")
-    @patch("charm.service_active", side_effect=[True, False])
+    @patch("linux_service.Service.is_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
     def test_given_imsi_k_ops_and_mme_when_attached_ue_action_then_status_is_active(
         self, _, __, patch_get_iface_ip_address
@@ -367,7 +369,7 @@ class TestCharm(unittest.TestCase):
     @patch("charm.wait_for_condition")
     @patch("subprocess.run", new=Mock())
     @patch("charm.get_iface_ip_address")
-    @patch("charm.service_active", side_effect=[True, False])
+    @patch("linux_service.Service.is_active", side_effect=[True, False])
     @patch("builtins.open", new_callable=mock_open)
     def test_given_attach_ue_action_when_tun_srsue_ip_is_not_available_after_timeout_then_action_fails(  # noqa: E501
         self, _, __, patch_get_iface_ip_address, patch_wait_for_condition
@@ -387,7 +389,8 @@ class TestCharm(unittest.TestCase):
             call("Failed to attach UE. Please, check if you have provided the right parameters."),
         )
 
-    @patch("utils.service_active")
+    @patch("os.remove", new=Mock)
+    @patch("linux_service.Service.is_active")
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run", new=Mock())
     def test_given_detach_ue_action_when_action_is_successful_then_status_is_active(  # noqa: E501
@@ -401,6 +404,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus("ue detached"))
 
+    @patch("os.remove", new=Mock)
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run")
     def test_given_detach_ue_action_when_detach_ue_action_then_srsue_service_is_stopped(  # noqa: E501
@@ -415,6 +419,7 @@ class TestCharm(unittest.TestCase):
             "systemctl stop srsue", shell=True, stdout=-1, encoding="utf-8"
         )
 
+    @patch("os.remove", new=Mock)
     @patch("builtins.open", new_callable=mock_open)
     @patch("subprocess.run", new=Mock())
     def test_given_detach_ue_action_when_detach_ue_action_then_srsue_service_sets_action_result(  # noqa: E501

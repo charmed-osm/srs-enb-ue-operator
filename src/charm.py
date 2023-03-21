@@ -11,7 +11,6 @@ from charms.lte_core_interface.v0.lte_core_interface import (
     LTECoreAvailableEvent,
     LTECoreRequires,
 )
-from jinja2 import Template
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -22,30 +21,12 @@ from ops.charm import (
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 
-from utils import (
-    get_iface_ip_address,
-    ip_from_default_iface,
-    service_active,
-    service_enable,
-    service_restart,
-    service_stop,
-    shell,
-    systemctl_daemon_reload,
-    wait_for_condition,
-)
+from linux_service import Service
+from utils import get_iface_ip_address, ip_from_default_iface, shell, wait_for_condition
 
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = "/snap/srsran/current/config"
-
-SRS_ENB_SERVICE = "srsenb"
-SRS_ENB_SERVICE_TEMPLATE = "./templates/srsenb.service"
-SRS_ENB_SERVICE_PATH = "/etc/systemd/system/srsenb.service"
-
-SRS_UE_SERVICE = "srsue"
-SRS_UE_SERVICE_TEMPLATE = "./templates/srsue.service"
-SRS_UE_SERVICE_PATH = "/etc/systemd/system/srsue.service"
-
 WAIT_FOR_UE_IP_TIMEOUT = 10
 
 
@@ -55,6 +36,8 @@ class SrsRANCharm(CharmBase):
     def __init__(self, *args):
         """Observes various events."""
         super().__init__(*args)
+        self.ue_service = Service("srsue")
+        self.enb_service = Service("srsenb")
 
         # Basic hooks
         self.framework.observe(self.on.install, self._on_install)
@@ -96,9 +79,13 @@ class SrsRANCharm(CharmBase):
             self.unit.status = WaitingStatus("Waiting for MME address to be available")
             return
         self.unit.status = MaintenanceStatus("Configuring srsenb")
-        self._configure_srsenb_service()
-        service_enable(SRS_ENB_SERVICE)
-        service_restart(SRS_ENB_SERVICE)
+        self.enb_service.create(
+            command=self._get_srsenb_command(),
+            user="root",
+            description="SRS eNodeB Emulator Service",
+        )
+        self.enb_service.enable()
+        self.enb_service.restart()
         self.unit.status = ActiveStatus("srsenb started")
 
     def _on_attach_ue_action(self, event: ActionEvent) -> None:
@@ -112,18 +99,23 @@ class SrsRANCharm(CharmBase):
         if not self._lte_core_mme_address_is_available:
             event.fail("MME address is not available")
             return
-        if not service_active(SRS_ENB_SERVICE):
+        if not self.enb_service.is_active():
             event.fail("Failed to attach. The EnodeB is not running.")
             return
-        if service_active(SRS_UE_SERVICE):
+        if self.ue_service.is_active():
             event.fail("Failed to attach. UE already running, please detach first.")
             return
-        self._configure_srsue_service(
-            ue_usim_imsi=event.params["usim-imsi"],
-            ue_usim_k=event.params["usim-k"],
-            ue_usim_opc=event.params["usim-opc"],
+        self.ue_service.create(
+            command=self._get_srsue_command(
+                ue_usim_imsi=event.params["usim-imsi"],
+                ue_usim_k=event.params["usim-k"],
+                ue_usim_opc=event.params["usim-opc"],
+            ),
+            user="ubuntu",
+            description="SRS UE Emulator Service",
+            exec_stop_post="service srsenb restart",
         )
-        service_restart(SRS_UE_SERVICE)
+        self.ue_service.restart()
         if not wait_for_condition(
             lambda: get_iface_ip_address("tun_srsue"), timeout=WAIT_FOR_UE_IP_TIMEOUT
         ):
@@ -141,8 +133,8 @@ class SrsRANCharm(CharmBase):
 
     def _on_detach_ue_action(self, event: ActionEvent) -> None:
         """Triggered on detach_ue action."""
-        service_stop(SRS_UE_SERVICE)
-        self._configure_srsue_service(None, None, None)  # type: ignore[arg-type]
+        self.ue_service.stop()
+        self.ue_service.delete()
         self.unit.status = ActiveStatus("ue detached")
         event.set_results({"status": "ok", "message": "Detached successfully"})
 
@@ -150,14 +142,6 @@ class SrsRANCharm(CharmBase):
         """Triggered on remove_default_gw action."""
         shell("route del default")
         event.set_results({"status": "ok", "message": "Default route removed!"})
-
-    def _configure_srsenb_service(self) -> None:
-        """Configures srs enb service."""
-        self._configure_service(
-            command=self._get_srsenb_command(),
-            service_template=SRS_ENB_SERVICE_TEMPLATE,
-            service_path=SRS_ENB_SERVICE_PATH,
-        )
 
     @staticmethod
     def _install_srsran() -> None:
@@ -170,16 +154,6 @@ class SrsRANCharm(CharmBase):
         """Removes srsRAN snap."""
         shell("snap remove srsran --purge")
         logger.info("Removed srsRAN snap")
-
-    def _configure_srsue_service(
-        self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str
-    ) -> None:
-        """Configures srs ue service."""
-        self._configure_service(
-            command=self._get_srsue_command(ue_usim_imsi, ue_usim_k, ue_usim_opc),
-            service_template=SRS_UE_SERVICE_TEMPLATE,
-            service_path=SRS_UE_SERVICE_PATH,
-        )
 
     @property
     def _lte_core_relation_is_created(self) -> bool:
@@ -199,19 +173,6 @@ class SrsRANCharm(CharmBase):
     def _lte_core_mme_address_is_available(self) -> bool:
         """Checks if the MME address is available."""
         return self._mme_address is not None
-
-    @staticmethod
-    def _configure_service(
-        command: str,
-        service_template: str,
-        service_path: str,
-    ) -> None:
-        """Renders service template and reload daemon service."""
-        with open(service_template, "r") as template:
-            service_content = Template(template.read()).render(command=command)
-        with open(service_path, "w") as service:
-            service.write(service_content)
-        systemctl_daemon_reload()
 
     def _get_srsenb_command(self) -> str:
         """Returns srs enb command."""
