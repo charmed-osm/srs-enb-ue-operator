@@ -157,7 +157,7 @@ class TestCharm(unittest.TestCase):
             "Type=simple\n"
             "Restart=always\n"
             "RestartSec=1\n"
-            "ExecStart=sudo /snap/bin/srsran.srsue --usim.imsi=whatever-imsi --usim.k=whatever-k --usim.opc=whatever-opc --usim.algo=milenage --nas.apn=oai.ipv4 --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /snap/srsran/current/config/ue.conf\n"  # noqa: E501, W505
+            "ExecStart=sudo /snap/bin/srsran.srsue --usim.imsi=whatever-imsi --usim.k=whatever-k --usim.opc=whatever-opc --usim.algo=milenage --nas.apn=default --rf.device_name=zmq --rf.device_args=tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6 /snap/srsran/current/config/ue.conf\n"  # noqa: E501, W505
             "User=ubuntu\n"
             "KillSignal=SIGINT\n"
             "TimeoutStopSec=10\n"
