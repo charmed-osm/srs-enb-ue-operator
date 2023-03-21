@@ -42,7 +42,7 @@ class Service:
             )
         with open(f"/etc/systemd/system/{self.name}.service", "w") as service:
             service.write(service_content)
-        _systemctl_daemon_reload()
+        self._systemctl_daemon_reload()
 
     def delete(self) -> None:
         """Deletes a linux service."""
@@ -50,25 +50,23 @@ class Service:
 
     def restart(self) -> None:
         """Restarts a linux service."""
-        _systemctl("restart", self.name)
+        self._systemctl("restart", self.name)
         logger.info("Service %s restarted", self.name)
 
     def stop(self) -> None:
         """Stops a linux service."""
-        _systemctl("stop", self.name)
+        self._systemctl("stop", self.name)
         logger.info("Service %s stopped", self.name)
 
     def enable(self) -> None:
         """Enables a linux service."""
-        _systemctl("enable", self.name)
+        self._systemctl("enable", self.name)
         logger.info("Service %s enabled", self.name)
 
+    def _systemctl(self, action: str, service_name: str) -> None:
+        shell(f"systemctl {action} {service_name}")
 
-def _systemctl(action: str, service_name: str) -> None:
-    shell(f"systemctl {action} {service_name}")
-
-
-def _systemctl_daemon_reload() -> None:
-    """Runs `systemctl daemon-reload`."""
-    shell("systemctl daemon-reload")
-    logger.info("Systemd manager configuration reloaded")
+    def _systemctl_daemon_reload(self) -> None:
+        """Runs `systemctl daemon-reload`."""
+        shell("systemctl daemon-reload")
+        logger.info("Systemd manager configuration reloaded")
