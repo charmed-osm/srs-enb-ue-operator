@@ -27,7 +27,7 @@ from utils import get_iface_ip_address, ip_from_default_iface, shell, wait_for_c
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = "/snap/srsran/current/config"
-WAIT_FOR_UE_IP_TIMEOUT = 10
+WAIT_FOR_UE_IP_TIMEOUT = 20
 
 
 class SrsRANCharm(CharmBase):
