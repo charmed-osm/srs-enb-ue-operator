@@ -76,6 +76,27 @@ class TestCharm(unittest.TestCase):
             description="SRS eNodeB Emulator Service",
         )
 
+    @patch("linux_service.Service.restart", new=Mock)
+    @patch("linux_service.Service.enable", new=Mock)
+    @patch("linux_service.Service.create")
+    @patch("charm.get_iface_ip_address")
+    def test_given_user_specified_bind_interface_when_lte_core_available_then_interface_is_used(
+        self, patch_get_iface_ip_address, patch_service_create
+    ):
+        self.harness.update_config(key_values={"bind-interface": "eth1"})
+        eth_1_ip_address = "5.6.7.8"
+        patch_get_iface_ip_address.return_value = eth_1_ip_address
+
+        self.harness.set_leader(True)
+
+        self.create_lte_core_relation()
+
+        patch_service_create.assert_called_with(
+            command=f"/snap/bin/srsran.srsenb --enb.mme_addr=1.2.3.4 --enb.gtp_bind_addr={eth_1_ip_address} --enb.s1c_bind_addr={eth_1_ip_address} --enb.name=dummyENB01 --enb.mcc=001 --enb.mnc=01 --enb_files.rr_config=/snap/srsran/current/config/rr.conf --enb_files.sib_config=/snap/srsran/current/config/sib.conf /snap/srsran/current/config/enb.conf --rf.device_name=zmq --rf.device_args=fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6",  # noqa: E501
+            user="root",
+            description="SRS eNodeB Emulator Service",
+        )
+
     @patch("charm.ip_from_default_iface", new=Mock)
     @patch("linux_service.Service.restart")
     @patch("linux_service.Service.enable", new=Mock)
@@ -158,7 +179,6 @@ class TestCharm(unittest.TestCase):
         patch_service_restart.assert_not_called()
 
     @patch("charm.ip_from_default_iface", new=Mock)
-    @patch("charm.get_iface_ip_address", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create")
