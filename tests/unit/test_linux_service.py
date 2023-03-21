@@ -147,3 +147,15 @@ class TestService(unittest.TestCase):
         service.delete()
 
         patch_os_remove.assert_called_with(f"/etc/systemd/system/{service_name}.service")
+
+    @patch("os.remove")
+    def test_given_service_doesnt_exist_when_delete_then_service_file_is_removed(
+        self, patch_os_remove
+    ):
+        service_name = "banana"
+        service = Service(name=service_name)
+        patch_os_remove.side_effect = FileNotFoundError()
+
+        service.delete()
+
+        patch_os_remove.assert_called_with(f"/etc/systemd/system/{service_name}.service")

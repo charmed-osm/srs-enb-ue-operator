@@ -27,7 +27,7 @@ class Service:
     def is_active(self) -> bool:
         """Returns whether service is active."""
         try:
-            response = shell(f"systemctl is-active {self.name}")
+            response = self._systemctl("is-active")
             return response == "active\n"
         except CalledProcessError:
             return False
@@ -46,27 +46,31 @@ class Service:
 
     def delete(self) -> None:
         """Deletes a linux service."""
-        os.remove(f"/etc/systemd/system/{self.name}.service")
+        try:
+            os.remove(f"/etc/systemd/system/{self.name}.service")
+        except FileNotFoundError:
+            pass
 
     def restart(self) -> None:
         """Restarts a linux service."""
-        self._systemctl("restart", self.name)
+        self._systemctl("restart")
         logger.info("Service %s restarted", self.name)
 
     def stop(self) -> None:
         """Stops a linux service."""
-        self._systemctl("stop", self.name)
+        self._systemctl("stop")
         logger.info("Service %s stopped", self.name)
 
     def enable(self) -> None:
         """Enables a linux service."""
-        self._systemctl("enable", self.name)
+        self._systemctl("enable")
         logger.info("Service %s enabled", self.name)
 
-    def _systemctl(self, action: str, service_name: str) -> None:
-        shell(f"systemctl {action} {service_name}")
+    def _systemctl(self, action: str) -> str:
+        return shell(f"systemctl {action} {self.name}")
 
-    def _systemctl_daemon_reload(self) -> None:
+    @staticmethod
+    def _systemctl_daemon_reload() -> None:
         """Runs `systemctl daemon-reload`."""
         shell("systemctl daemon-reload")
         logger.info("Systemd manager configuration reloaded")
