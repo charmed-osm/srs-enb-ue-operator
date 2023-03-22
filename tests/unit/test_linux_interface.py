@@ -39,3 +39,14 @@ class TestLinuxInterface(unittest.TestCase):
         interface = Interface(name=interface_name)
 
         assert interface.get_ip_address() == ip_address
+
+    @patch("netifaces.ifaddresses")
+    def test_given_interface_doesnt_exist_when_ip_address_then_none_is_returned(
+        self, patch_addresses
+    ):
+        interface_name = "eth1"
+        patch_addresses.side_effect = ValueError
+
+        interface = Interface(name=interface_name)
+
+        assert not interface.get_ip_address()
