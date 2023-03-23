@@ -60,12 +60,12 @@ class TestCharm(unittest.TestCase):
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create")
-    @patch("charm.ip_from_default_iface")
+    @patch("linux_interface.Interface.get_ip_address")
     def test_given_lte_core_relation_when_mme_address_is_available_then_srsenb_service_is_created(
-        self, patch_ip_from_default_iface, patch_service_create
+        self, patch_ip_address, patch_service_create
     ):
         bind_address = "1.1.1.1"
-        patch_ip_from_default_iface.return_value = bind_address
+        patch_ip_address.return_value = bind_address
         self.harness.set_leader(True)
 
         self.create_lte_core_relation()
@@ -79,7 +79,7 @@ class TestCharm(unittest.TestCase):
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create")
-    @patch("charm.get_iface_ip_address")
+    @patch("linux_interface.Interface.get_ip_address")
     def test_given_user_specified_bind_interface_when_lte_core_available_then_interface_is_used(
         self, patch_get_iface_ip_address, patch_service_create
     ):
@@ -97,7 +97,7 @@ class TestCharm(unittest.TestCase):
             description="SRS eNodeB Emulator Service",
         )
 
-    @patch("charm.ip_from_default_iface", new=Mock)
+    @patch("linux_interface.Interface.get_ip_address", new=Mock)
     @patch("linux_service.Service.restart")
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
@@ -124,7 +124,7 @@ class TestCharm(unittest.TestCase):
 
         patch_shell.assert_called_with("snap remove srsran --purge")
 
-    @patch("charm.ip_from_default_iface", new=Mock)
+    @patch("linux_interface.Interface.get_ip_address", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
@@ -138,7 +138,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started"))
 
-    @patch("charm.ip_from_default_iface", new=Mock)
+    @patch("linux_interface.Interface.get_ip_address", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
@@ -152,7 +152,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(self.harness.charm.unit.status, ActiveStatus("srsenb started"))
 
-    @patch("charm.ip_from_default_iface", new=Mock)
+    @patch("linux_interface.Interface.get_ip_address", new=Mock)
     @patch("linux_service.Service.restart")
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
@@ -167,7 +167,7 @@ class TestCharm(unittest.TestCase):
 
         patch_service_restart.assert_called()
 
-    @patch("charm.ip_from_default_iface", new=Mock)
+    @patch("linux_interface.Interface.get_ip_address", new=Mock)
     @patch("linux_service.Service.restart")
     def test_given_any_config_and_started_is_false_when_on_config_changed_then_srsenb_service_is_not_restarted(  # noqa: E501
         self, patch_service_restart
@@ -178,7 +178,7 @@ class TestCharm(unittest.TestCase):
 
         patch_service_restart.assert_not_called()
 
-    @patch("charm.ip_from_default_iface", new=Mock)
+    @patch("linux_interface.Interface.get_ip_address", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create")
@@ -204,8 +204,7 @@ class TestCharm(unittest.TestCase):
             exec_stop_post="service srsenb restart",
         )
 
-    @patch("charm.ip_from_default_iface", new=Mock)
-    @patch("charm.get_iface_ip_address")
+    @patch("linux_interface.Interface.get_ip_address")
     @patch("linux_service.Service.restart")
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
@@ -234,12 +233,11 @@ class TestCharm(unittest.TestCase):
             ),
         )
 
-    @patch("charm.ip_from_default_iface", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
     @patch("linux_service.Service.is_active")
-    @patch("charm.get_iface_ip_address")
+    @patch("linux_interface.Interface.get_ip_address")
     @patch("charm.wait_for_condition", new=Mock)
     def test_given_ue_running_when_attach_ue_action_then_event_fails(  # noqa: E501
         self, patch_get_iface_ip_address, patch_service_active
@@ -259,11 +257,10 @@ class TestCharm(unittest.TestCase):
             call("Failed to attach. UE already running, please detach first."),
         )
 
-    @patch("charm.ip_from_default_iface", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
-    @patch("charm.get_iface_ip_address")
+    @patch("linux_interface.Interface.get_ip_address")
     @patch("linux_service.Service.is_active", side_effect=[True, False])
     @patch("charm.wait_for_condition", new=Mock)
     def test_given_imsi_k_and_opc_when_attached_ue_action_then_srsue_service_sets_action_result(
@@ -288,11 +285,10 @@ class TestCharm(unittest.TestCase):
             ),
         )
 
-    @patch("charm.ip_from_default_iface", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
-    @patch("charm.get_iface_ip_address")
+    @patch("linux_interface.Interface.get_ip_address")
     @patch("linux_service.Service.is_active", side_effect=[True, False])
     @patch("charm.wait_for_condition", new=Mock)
     def test_given_imsi_k_ops_and_mme_when_attached_ue_action_then_status_is_active(
@@ -312,13 +308,12 @@ class TestCharm(unittest.TestCase):
             ActiveStatus("ue attached."),
         )
 
-    @patch("charm.ip_from_default_iface", new=Mock)
     @patch("linux_service.Service.restart", new=Mock)
     @patch("linux_service.Service.enable", new=Mock)
     @patch("linux_service.Service.create", new=Mock)
     @patch("charm.wait_for_condition")
     @patch("charm.shell", new=Mock())
-    @patch("charm.get_iface_ip_address")
+    @patch("linux_interface.Interface.get_ip_address")
     @patch("linux_service.Service.is_active", side_effect=[True, False])
     def test_given_attach_ue_action_when_tun_srsue_ip_is_not_available_after_timeout_then_action_fails(  # noqa: E501
         self, _, patch_get_iface_ip_address, patch_wait_for_condition

@@ -21,8 +21,9 @@ from ops.charm import (
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 
+from linux_interface import Interface
 from linux_service import Service
-from utils import get_iface_ip_address, ip_from_default_iface, shell, wait_for_condition
+from utils import shell, wait_for_condition
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +117,9 @@ class SrsRANCharm(CharmBase):
             exec_stop_post="service srsenb restart",
         )
         self.ue_service.restart()
+        tun_srsue_interface = Interface(name="tun_srsue")
         if not wait_for_condition(
-            lambda: get_iface_ip_address("tun_srsue"), timeout=WAIT_FOR_UE_IP_TIMEOUT
+            lambda: tun_srsue_interface.get_ip_address(), timeout=WAIT_FOR_UE_IP_TIMEOUT
         ):
             event.fail(
                 "Failed to attach UE. Please, check if you have provided the right parameters."
@@ -126,7 +128,7 @@ class SrsRANCharm(CharmBase):
         event.set_results(
             {
                 "status": "UE attached successfully.",
-                "ue-ipv4-address": get_iface_ip_address("tun_srsue"),
+                "ue-ipv4-address": tun_srsue_interface.get_ip_address(),
             }
         )
         self.unit.status = ActiveStatus("ue attached.")
@@ -238,11 +240,9 @@ class SrsRANCharm(CharmBase):
     @property
     def _bind_address(self) -> Optional[str]:
         """Returns bind address."""
-        bind_interface = self.model.config.get("bind-interface")
-        if not bind_interface:
-            return ip_from_default_iface()
-        else:
-            return get_iface_ip_address(iface=bind_interface)
+        bind_interface_name = self.model.config.get("bind-interface")
+        bind_interface = Interface(bind_interface_name)
+        return bind_interface.get_ip_address()
 
 
 if __name__ == "__main__":
