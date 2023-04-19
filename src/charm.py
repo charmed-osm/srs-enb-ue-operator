@@ -202,7 +202,7 @@ class SrsRANCharm(CharmBase):
 
     def _get_srsue_command(self, ue_usim_imsi: str, ue_usim_k: str, ue_usim_opc: str) -> str:
         """Returns srs ue command."""
-        srsue_command = ["sudo", "/snap/bin/srsran.srsue"]
+        srsue_command = ["/snap/bin/srsran.srsue"]
         srsue_command.extend(
             (
                 f"--usim.imsi={ue_usim_imsi}",
