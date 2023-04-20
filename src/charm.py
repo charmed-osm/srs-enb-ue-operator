@@ -28,7 +28,7 @@ from utils import shell, wait_for_condition
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = "/snap/srsran/current/config"
-WAIT_FOR_UE_IP_TIMEOUT = 20
+WAIT_FOR_UE_IP_TIMEOUT = 80
 
 
 class SrsRANCharm(CharmBase):
