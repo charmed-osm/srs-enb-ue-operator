@@ -148,7 +148,10 @@ class SrsRANCharm(CharmBase):
     @staticmethod
     def _install_srsran() -> None:
         """Installs srsRAN snap."""
-        shell("snap install srsran --edge --devmode")
+        shell("snap install srsran --edge")
+        shell("snap connect srsran:network-control")
+        shell("snap connect srsran:process-control")
+        shell("snap connect srsran:system-observe")
         logger.info("Installed srsRAN snap")
 
     @staticmethod
