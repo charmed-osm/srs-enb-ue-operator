@@ -47,7 +47,14 @@ class TestCharm(unittest.TestCase):
 
         self.harness.charm.on.install.emit()
 
-        patch_shell.assert_called_with("snap install srsran --edge --devmode")
+        patch_shell.assert_has_calls(
+            [
+                call("snap install srsran --edge"),
+                call("snap connect srsran:network-control"),
+                call("snap connect srsran:process-control"),
+                call("snap connect srsran:system-observe"),
+            ]
+        )
 
     @patch("charm.shell", new=Mock())
     def test_given_unit_is_leader_when_install_then_status_is_maintenance(self):
